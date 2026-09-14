@@ -1,0 +1,4 @@
+agent-framework>=1.0.0
+agent-framework-foundry>=1.0.0
+agent-framework-foundry-hosting==1.0.0b260903
+azure-identity>=1.17.0

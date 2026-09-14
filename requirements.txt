@@ -1,0 +1,33 @@
+# Microsoft Foundry demo — notebooks 1 and 2 — Python 3.10+ (3.12 recommended)
+# Pinned to the minimum versions referenced in the Foundry documentation (September 2026).
+
+# --- Core: project client, OpenAI-compatible surface, identity (NB1 cells 0–4, NB2 all) ---
+azure-ai-projects>=2.5.0        # Foundry SDK 2.x — agents, toolboxes, memory, conversations, evaluations, tracing
+openai>=3.0.0                    # OpenAI-compatible surface: Responses API, Model Router, service_tier; also used against the AI gateway
+azure-identity>=1.17.0           # DefaultAzureCredential — keyless sign-in with Microsoft Entra ID
+requests>=2.32.0                 # NB2: direct calls to hosted-agent Responses endpoints
+
+# --- Toolbox verification over MCP (NB1 cell 3) ---
+mcp>=1.10.0
+
+# --- Optional model providers (NB1 cell 1, if you show Claude) ---
+anthropic>=0.40.0                # Claude via the /anthropic Messages surface
+
+# --- Tracing and querying telemetry (NB1 cell 6, NB2 steps 3–4) ---
+opentelemetry-sdk>=1.27.0
+azure-core-tracing-opentelemetry>=1.0.0b11
+azure-monitor-opentelemetry>=1.6.0
+opentelemetry-exporter-otlp>=1.27.0   # only if you export to Aspire Dashboard / another OTLP backend
+azure-monitor-query>=1.4.0            # KQL against Application Insights: spans and gateway token metrics
+
+# --- Knowledge base setup on Azure AI Search (NB1 cell 3, optional) ---
+azure-search-documents>=11.6.0
+
+# --- Agent Framework and agent-server libraries (local runs of the NB2 agents; mention-only in NB1) ---
+-r agent/src/demo-hosted-agent/requirements.txt
+-r agent/src/demo-long-running-agent/requirements.txt
+
+# --- Notebook plumbing ---
+jupyter>=1.1.0
+ipykernel>=6.29.0
+python-dotenv>=1.0.0

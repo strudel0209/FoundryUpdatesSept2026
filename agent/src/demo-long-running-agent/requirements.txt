@@ -1,0 +1,6 @@
+azure-ai-agentserver-core>=2.0.0
+azure-ai-agentserver-responses>=2.0.0
+azure-ai-projects>=2.5.0
+azure-identity>=1.17.0
+openai>=3.0.0
+aiohttp>=3.9.0

@@ -1,0 +1,42 @@
+{
+  "name": "foundry-whatisnew",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/azure/azure-dev/azd:latest": {}
+  },
+
+  "postCreateCommand": "pip install -r requirements.txt && curl -fsSL https://aka.ms/install-azd.sh | bash && azd extension install azure.ai.agents && azd ext install microsoft.foundry",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-azuretools.vscode-bicep",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "yaml.schemas": {
+          "https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json": "agent/azure.yaml"
+        }
+      }
+    }
+  },
+
+  "remoteEnv": {
+    "PIP_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
+    "UV_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
+    "PYTHONPATH": "${containerWorkspaceFolder}",
+    "AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING": "true",
+    "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "false"
+  },
+
+  "forwardPorts": [8088, 18888, 4317],
+  "portsAttributes": {
+    "8088":  { "label": "Hosted agent (azd ai agent run)" },
+    "18888": { "label": "Aspire Dashboard UI" },
+    "4317":  { "label": "OTLP gRPC" }
+  }
+}
