@@ -2,6 +2,12 @@
 
 Two complementary notebooks explore Microsoft Foundry from model calls and managed prompt agents to custom hosted agents, long-running business workflows, observability, and gateway controls.
 
+A separate [third notebook: private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) drafts the complete infrastructure-to-publishing workflow without APIM. It uses an isolated [deployment manifest](private-agent/azure.yaml), reuses the existing hosted-agent source, and requires explicit confirmations for cloud changes. Its cells have been validated offline, but the Azure deployment and Teams exchange have not been tested end to end. Private connectivity for the notebook kernel is a prerequisite after infrastructure provisioning.
+
+Notebook 3 uses Azure management SDKs for infrastructure, provider checks, RBAC, private-access checks, and Bot Service, plus `AIProjectClient` for agent lookup and `OpenAI` for the agent-specific Responses endpoint. Install the updated [requirements](requirements.txt) in the selected kernel and restart it before rerunning configuration and preflight. The current resource SDK separates subscriptions and deployments into two additional packages. The [dev container](.devcontainer/devcontainer.json) configures the Microsoft package proxy for pip/uv; rebuild it to apply container environment changes.
+
+Bicep is compiled locally with `az bicep build --stdout`; the sample's precompiled JSON is not used. `azd deploy` and the REST calls for Microsoft 365 publishing and endpoint configuration are retained. SDK deployment polling stores a continuation token in the ignored local run state so the wait cell can reconnect without resubmission. For an older CLI-submitted deployment without a token, wait in Azure and rerun the output-loading cell after it succeeds.
+
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
 ## Choose a Notebook

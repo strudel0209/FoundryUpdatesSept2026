@@ -25,6 +25,12 @@
     }
   },
 
+  "containerEnv": {
+    "PIP_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
+    "UV_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
+    "PYTHONPATH": "${containerWorkspaceFolder}"
+  },
+
   "remoteEnv": {
     "PIP_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
     "UV_INDEX_URL": "https://packagefeedproxy.microsoft.io/pypi/simple/",
