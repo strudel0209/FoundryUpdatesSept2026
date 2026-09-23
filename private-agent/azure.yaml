@@ -9,7 +9,7 @@ services:
     endpoint: ${FOUNDRY_PROJECT_ENDPOINT}
   demo-hosted-agent:
     host: azure.ai.agent
-    project: ../agent/src/demo-hosted-agent
+    project: src/demo-hosted-agent  # staged copy of ../agent/src/demo-hosted-agent; azd rejects '..' in service paths
     language: python
     codeConfiguration:
       runtime: python_3_13
