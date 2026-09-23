@@ -1,12 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Two complementary notebooks explore Microsoft Foundry from model calls and managed prompt agents to custom hosted agents, long-running business workflows, observability, and gateway controls.
-
-A separate [third notebook: private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) drafts the complete infrastructure-to-publishing workflow without APIM. It uses an isolated [deployment manifest](private-agent/azure.yaml), reuses the existing hosted-agent source, and requires explicit confirmations for cloud changes. Its cells have been validated offline, but the Azure deployment and Teams exchange have not been tested end to end. Private connectivity for the notebook kernel is a prerequisite after infrastructure provisioning.
-
-Notebook 3 uses Azure management SDKs for infrastructure, provider checks, RBAC, private-access checks, and Bot Service, plus `AIProjectClient` for agent lookup and `OpenAI` for the agent-specific Responses endpoint. Install the updated [requirements](requirements.txt) in the selected kernel and restart it before rerunning configuration and preflight. The current resource SDK separates subscriptions and deployments into two additional packages. The [dev container](.devcontainer/devcontainer.json) configures the Microsoft package proxy for pip/uv; rebuild it to apply container environment changes.
-
-Bicep is compiled locally with `az bicep build --stdout`; the sample's precompiled JSON is not used. `azd deploy` and the REST calls for Microsoft 365 publishing and endpoint configuration are retained. SDK deployment polling stores a continuation token in the ignored local run state so the wait cell can reconnect without resubmission. For an older CLI-submitted deployment without a token, wait in Azure and rerun the output-loading cell after it succeeds.
+Three notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, and finally publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -16,6 +10,7 @@ These are hands-on presentation demos, not production application templates. Not
 | --- | --- | --- |
 | [Notebook 1: Foundry platform features](foundry-demo.ipynb) | Call models and assemble a managed prompt agent | Model Router, priority processing, toolboxes, conversations, memory, tracing, evaluation, and guardrails |
 | [Notebook 2: Hosted agents and operations](foundry-demo-2-hosted-agents.ipynb) | Interact with services deployed beforehand | Custom agent code, a procurement briefing workflow, background execution, steering, recovery, telemetry, and an API Management gateway |
+| [Notebook 3: Private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) | Provision a private Foundry project and publish to Teams | VNet-injected Foundry, private endpoint access, azd source deployment, Azure Bot Service, the Activity Protocol route, and Microsoft 365 publishing |
 
 ## Notebook 1: Platform Features
 
@@ -81,6 +76,54 @@ The deployment manifest includes a **10-second presentation-only delay per stage
 
 The gateway is not provisioned by these notebooks. Its API path, backend authentication, subscription, policies, and telemetry destination must be configured separately. Verify the imported API's path and the token-metric query against your gateway; it may use a different Application Insights resource from the agents.
 
+## Notebook 3: Private Hosted Agent to Teams
+
+[foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb) follows [Publish agents to Microsoft 365 and Teams by using the REST API](https://learn.microsoft.com/azure/foundry/agents/how-to/publish-copilot-virtual-network) using the native `azure-ai-projects` SDK. It creates a separate private Foundry environment; it does not touch the public project used by notebooks 1 and 2.
+
+![Private Foundry hosted agent published to Microsoft Teams](docs/private-teams-architecture.svg)
+
+The Foundry account keeps **public network access disabled**. Teams traffic does **not** use Private Link: `enable_m365_public_endpoint` opens only the agent's Activity Protocol route to Azure Bot Service and Microsoft 365 source IPs, and `BotServiceRbac` still requires a same-tenant user with Foundry permissions. Management, deployment, Responses, and publishing calls go through the private endpoint, so they must run from inside the VNet.
+
+| Section | Functionality |
+| --- | --- |
+| Configuration | Read the `PRIVATE_DEMO_*` settings from `.env` and create Azure SDK clients. |
+| Infrastructure | Compile the pinned [sample 11](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-bicep/11-private-network-basic-vnet) Bicep (VNet injection, private endpoint and DNS, model, private telemetry) and deploy it with the SDK. Reruns only read the deployment outputs. Assign **Foundry User** on the new project. |
+| Connectivity gate | Confirm public network access is disabled and the project API is reachable privately. |
+| Deploy and test | Deploy the existing `demo-hosted-agent` source with the isolated [azd manifest](private-agent/azure.yaml) (`codeConfiguration`, no ACR), then call it through `project.get_openai_client(agent_name=...)`. |
+| Doc steps 1–2 | Read the agent identity client ID and create a single-tenant Azure Bot Service with a Teams channel. |
+| Doc step 3 | `project.agents.update_details(...)`: keep `responses` + `Entra`, add `activity` with `enable_m365_public_endpoint` + `BotServiceRbac`. |
+| Doc step 4 | `project.agents.publish_to_microsoft365(...)` with `Shared` scope; returns a `title_id`. |
+| Prove and clean up | Chat in Teams, confirm a call from outside the VNet gets `403 NetworkAccessDenied`, and optionally delete the resource group. |
+
+### Private connectivity with a devbox VM
+
+A dev container shares its host's network, so the local container cannot reach the private endpoint. Run notebook 3 from a small VM in a non-delegated subnet of the same VNet; Azure DNS resolves the linked private DNS zones automatically. Notebooks 1 and 2 keep running locally.
+
+1. Provision the infrastructure (notebook 3, cells 3 and 5); these are management-plane calls and work from anywhere.
+2. Create the devbox (replace the SSH public key with your own; SSH is allowed only from your current IP):
+
+   ```bash
+   RG=rg-foundry-private-teams-demo
+   az network vnet subnet create -g $RG --vnet-name private-teams-vnet -n dev-subnet --address-prefixes 10.74.2.0/24
+   az vm create -g $RG -n devbox --image Ubuntu2404 --size Standard_D4s_v5 \
+     --vnet-name private-teams-vnet --subnet dev-subnet --admin-username azureuser \
+     --ssh-key-values "<your ssh-ed25519 public key>" --public-ip-sku Standard --nsg-rule NONE
+   az network nsg rule create -g $RG --nsg-name devboxNSG -n allow-ssh-my-ip --priority 1000 \
+     --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 22 \
+     --source-address-prefixes "$(curl -s https://api.ipify.org)/32"
+   az vm run-command invoke -g $RG -n devbox --command-id RunShellScript \
+     --scripts "curl -fsSL https://get.docker.com | sh && usermod -aG docker azureuser && apt-get install -y git"
+   ```
+
+3. Commit and push your changes: the VM clones the repository, and the [dev container](.devcontainer/devcontainer.json) comes with it.
+4. In **local** VS Code, run **Remote-SSH: Connect to Host…** with `azureuser@<devbox-public-ip>`. No jumpbox is needed.
+5. On the VM, clone the repository, open the folder, create `.env` (it is gitignored), and run **Dev Containers: Reopen in Container**.
+6. In the container, run `az login` and `azd auth login`, check that `getent hosts <account>.services.ai.azure.com` returns a `10.74.1.x` address, then run notebook 3 from cell 3 onward.
+
+If your public IP changes, update the `allow-ssh-my-ip` rule. Deallocate the VM when idle: `az vm deallocate -g rg-foundry-private-teams-demo -n devbox`. If policy forbids a public IP with SSH, use Azure Bastion (Standard SKU, native client) or a point-to-site VPN with private DNS resolution instead.
+
+**Publishing notes:** replace the Contoso developer metadata before publishing. Republishing the same `app_version` fails. The Teams catalog can take about an hour to show the agent under **Your agents**. Remove the app from Teams before deleting Azure resources; resource deletion does not clean up the Microsoft 365 catalog.
+
 ## Prerequisites
 
 - An Azure subscription and an existing Foundry project with appropriate feature and regional availability.
@@ -114,6 +157,7 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
 | `APIM_GATEWAY_URL` | Optional gateway section: gateway URL including the imported API suffix |
 | `APIM_SUBSCRIPTION_KEY` | Optional gateway section: subscription key authorized for that API |
+| `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
 
 The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
 
@@ -134,6 +178,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 3. Deploy the two hosted services following the agent guide before opening notebook 2's hosted-agent sections.
 4. In notebook 2, connect and invoke the hosted assistant. Run the briefing start cell, then promptly run steering while the first turn is active, followed by the polling cell. Skip steering to finish the original sourcing brief.
 5. Inspect the completed deliverable and telemetry. Run the optional gateway section only after configuring API Management.
+6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
 
 Avoid blindly using **Run All**: steering is timing-sensitive, some cells modify Azure resources, and notebook 1 ends with a destructive cleanup cell. Repeated setup can also change which agent version subsequent name-only references select.
 
@@ -153,10 +198,15 @@ Notebook 1's cleanup cell deletes its memory store; agent and toolbox deletion e
 
 For hosted resources, follow the agent guide and review the selected azd environment before using `azd down`. Review separately managed resources such as API Management separately; do not assume the notebook cleanup removes all chargeable resources.
 
+Notebook 3's private environment (VNet, private endpoint, model, hosted compute, Bot Service, telemetry, and the devbox VM) is billable while it exists. Its last cell deletes the whole dedicated resource group, including the devbox. If a capability host blocks subnet reuse, follow the pinned sample's cleanup guidance.
+
 ## Repository Guide
 
 - [foundry-demo.ipynb](foundry-demo.ipynb): platform features and managed prompt-agent lifecycle.
 - [foundry-demo-2-hosted-agents.ipynb](foundry-demo-2-hosted-agents.ipynb): hosted services, procurement brief, telemetry, and gateway.
+- [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
+- [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
+- [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
 - [.env.example](.env.example): notebook configuration template.
 - [agent/README.md](agent/README.md): hosted-agent setup, deployment, and local operations.
