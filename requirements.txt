@@ -1,4 +1,4 @@
-# Microsoft Foundry demo — notebooks 1–3 — Python 3.12 recommended
+# Microsoft Foundry demo — notebooks 1–4 — Python 3.12 recommended
 # Pinned to the minimum versions referenced in the Foundry documentation (September 2026).
 
 # --- Core: project client, OpenAI-compatible surface, identity (NB1 cells 0–4, NB2 all) ---
@@ -30,6 +30,9 @@ azure-monitor-query>=1.4.0            # KQL against Application Insights: spans 
 
 # --- Knowledge base setup on Azure AI Search (NB1 cell 3, optional) ---
 azure-search-documents>=11.6.0
+
+# --- Offline prompt-prefix token counting (NB4) ---
+tiktoken>=0.8.0
 
 # --- Agent Framework and agent-server libraries (local runs of the NB2 agents; mention-only in NB1) ---
 -r agent/src/demo-hosted-agent/requirements.txt

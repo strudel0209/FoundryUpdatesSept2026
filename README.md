@@ -1,6 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Three notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, and finally publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM.
+Four notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, and prompt caching.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -11,6 +11,7 @@ These are hands-on presentation demos, not production application templates. Not
 | [Notebook 1: Foundry platform features](foundry-demo.ipynb) | Call models and assemble a managed prompt agent | Model Router, priority processing, toolboxes, conversations, memory, tracing, evaluation, and guardrails |
 | [Notebook 2: Hosted agents and operations](foundry-demo-2-hosted-agents.ipynb) | Interact with services deployed beforehand | Custom agent code, a procurement briefing workflow, background execution, steering, recovery, telemetry, and an API Management gateway |
 | [Notebook 3: Private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) | Provision a private Foundry project and publish to Teams | VNet-injected Foundry, private endpoint access, azd source deployment, Azure Bot Service, the Activity Protocol route, and Microsoft 365 publishing |
+| [Notebook 4: Prompt caching](foundry-demo-4-promp-caching.ipynb) | Observe cache reads and writes on the public project | Cold/warm calls, prefix sensitivity, prompt layout, append-only history, explicit breakpoints with `prompt_cache_key`, and reuse ratios |
 
 ## Notebook 1: Platform Features
 
@@ -148,8 +149,8 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 
 | Variable | Used for |
 | --- | --- |
-| `FOUNDRY_PROJECT_ENDPOINT` | Both notebooks: `https://<account>.services.ai.azure.com/api/projects/<project>` |
-| `FOUNDRY_MODEL_NAME` | Chat deployment in both notebooks |
+| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2 and 4: `https://<account>.services.ai.azure.com/api/projects/<project>` |
+| `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1, 2 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
 | `HOSTED_AGENT_NAME` | Notebook 2 hosted assistant; defaults to `demo-hosted-agent` |
@@ -205,6 +206,7 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo.ipynb](foundry-demo.ipynb): platform features and managed prompt-agent lifecycle.
 - [foundry-demo-2-hosted-agents.ipynb](foundry-demo-2-hosted-agents.ipynb): hosted services, procurement brief, telemetry, and gateway.
 - [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
+- [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
