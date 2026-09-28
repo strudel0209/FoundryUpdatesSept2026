@@ -1,6 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Four notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, and prompt caching.
+Five notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, and the Agent2Agent (A2A) protocol.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -8,14 +8,15 @@ These are hands-on presentation demos, not production application templates. Not
 
 | Notebook | Focus | What you demonstrate |
 | --- | --- | --- |
-| [Notebook 1: Foundry platform features](foundry-demo.ipynb) | Call models and assemble a managed prompt agent | Model Router, priority processing, toolboxes, conversations, memory, tracing, evaluation, and guardrails |
+| [Notebook 1: Foundry platform features](foundry-demo-1-what-is-new.ipynb) | Call models and assemble a managed prompt agent | Model Router, priority processing, toolboxes, conversations, memory, tracing, evaluation, and guardrails |
 | [Notebook 2: Hosted agents and operations](foundry-demo-2-hosted-agents.ipynb) | Interact with services deployed beforehand | Custom agent code, a procurement briefing workflow, background execution, steering, recovery, telemetry, and an API Management gateway |
 | [Notebook 3: Private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) | Provision a private Foundry project and publish to Teams | VNet-injected Foundry, private endpoint access, azd source deployment, Azure Bot Service, the Activity Protocol route, and Microsoft 365 publishing |
 | [Notebook 4: Prompt caching](foundry-demo-4-promp-caching.ipynb) | Observe cache reads and writes on the public project | Cold/warm calls, prefix sensitivity, prompt layout, append-only history, explicit breakpoints with `prompt_cache_key`, and reuse ratios |
+| [Notebook 5: Agent2Agent (A2A)](foundry-demo-5-a2a.ipynb) | Run an A2A 1.0 server and client locally, then configure A2A in Foundry | Agent Card discovery, tasks and their states, input-required and resume, artifacts, wire format, the outbound `a2a` tool, and the inbound A2A endpoint |
 
 ## Notebook 1: Platform Features
 
-[foundry-demo.ipynb](foundry-demo.ipynb) uses a Foundry project client and its OpenAI-compatible client to explore the platform incrementally.
+[foundry-demo-1-what-is-new.ipynb](foundry-demo-1-what-is-new.ipynb) uses a Foundry project client and its OpenAI-compatible client to explore the platform incrementally.
 
 | Section | Functionality |
 | --- | --- |
@@ -100,30 +101,197 @@ The Foundry account keeps **public network access disabled**. Teams traffic does
 
 A dev container shares its host's network, so the local container cannot reach the private endpoint. Run notebook 3 from a small VM in a non-delegated subnet of the same VNet; Azure DNS resolves the linked private DNS zones automatically. Notebooks 1 and 2 keep running locally.
 
-1. Provision the infrastructure (notebook 3, cells 3 and 5); these are management-plane calls and work from anywhere.
-2. Create the devbox (replace the SSH public key with your own; SSH is allowed only from your current IP):
+Organization policy can block inbound SSH from the Internet (NSG rules are removed and subnet NSGs attached automatically), so reach the VM through **Azure Bastion (Standard, native client tunneling)**. VS Code on your laptop then uses Remote-SSH over the Bastion tunnel; no public SSH port or jumpbox is needed.
 
-   ```bash
-   RG=rg-foundry-private-teams-demo
-   az network vnet subnet create -g $RG --vnet-name private-teams-vnet -n dev-subnet --address-prefixes 10.74.2.0/24
-   az vm create -g $RG -n devbox --image Ubuntu2404 --size Standard_D4s_v5 \
-     --vnet-name private-teams-vnet --subnet dev-subnet --admin-username azureuser \
-     --ssh-key-values "<your ssh-ed25519 public key>" --public-ip-sku Standard --nsg-rule NONE
-   az network nsg rule create -g $RG --nsg-name devboxNSG -n allow-ssh-my-ip --priority 1000 \
-     --direction Inbound --access Allow --protocol Tcp --destination-port-ranges 22 \
-     --source-address-prefixes "$(curl -s https://api.ipify.org)/32"
-   az vm run-command invoke -g $RG -n devbox --command-id RunShellScript \
-     --scripts "curl -fsSL https://get.docker.com | sh && usermod -aG docker azureuser && apt-get install -y git"
-   ```
+```mermaid
+flowchart LR
+  A["Local VS Code (Windows)"] -- "Remote-SSH to 127.0.0.1:50022" --> T["az network bastion tunnel (PowerShell)"]
+  T -- "HTTPS" --> B["devbox-bastion"]
+  B -- "port 22, inside the VNet" --> V["devbox VM → dev container"]
+  V -- "private endpoint" --> F["Private Foundry project"]
+```
 
-3. Commit and push your changes: the VM clones the repository, and the [dev container](.devcontainer/devcontainer.json) comes with it.
-4. In **local** VS Code, run **Remote-SSH: Connect to Host…** with `azureuser@<devbox-public-ip>`. No jumpbox is needed.
-5. On the VM, clone the repository, open the folder, create `.env` (it is gitignored), and run **Dev Containers: Reopen in Container**.
-6. In the container, run `az login` and `azd auth login`, check that `getent hosts <account>.services.ai.azure.com` returns a `10.74.1.x` address, then run notebook 3 from cell 3 onward.
+**1. Provision the infrastructure** (notebook 3, cells 3 and 5). These are management-plane calls and work from anywhere.
 
-If your public IP changes, update the `allow-ssh-my-ip` rule. Deallocate the VM when idle: `az vm deallocate -g rg-foundry-private-teams-demo -n devbox`. If policy forbids a public IP with SSH, use Azure Bastion (Standard SKU, native client) or a point-to-site VPN with private DNS resolution instead.
+**2. Create the devbox and Bastion** (Azure CLI in the local dev container or any shell; replace the SSH public key with your own):
+
+```bash
+RG=rg-foundry-private-teams-demo
+az network vnet subnet create -g $RG --vnet-name private-teams-vnet -n dev-subnet --address-prefixes 10.74.2.0/24
+az vm create -g $RG -n devbox --image Ubuntu2404 --size Standard_D4s_v5 \
+  --vnet-name private-teams-vnet --subnet dev-subnet --admin-username azureuser \
+  --ssh-key-values "<your ssh-ed25519 public key>" --public-ip-address "" --nsg-rule NONE
+az vm run-command invoke -g $RG -n devbox --command-id RunShellScript \
+  --scripts "curl -fsSL https://get.docker.com | sh && usermod -aG docker azureuser && apt-get install -y git"
+
+az extension add -n bastion -y
+az network vnet subnet create -g $RG --vnet-name private-teams-vnet -n AzureBastionSubnet --address-prefixes 10.74.3.0/26
+az network public-ip create -g $RG -n devbox-bastion-pip --sku Standard
+az network bastion create -g $RG -n devbox-bastion --vnet-name private-teams-vnet \
+  --public-ip-address devbox-bastion-pip --sku Standard --enable-tunneling true --no-wait
+az network bastion show -g $RG -n devbox-bastion --query provisioningState -o tsv   # wait for Succeeded (10–15 min)
+```
+
+**3. Prepare Windows** (in **Windows PowerShell** on your laptop, not the VS Code dev container terminal):
+
+```powershell
+az extension add -n bastion
+az login
+az account set --subscription <subscription-id>
+```
+
+Run **Remote-SSH: Open SSH Configuration File…** in local VS Code, choose `%USERPROFILE%\.ssh\config`, and add:
+
+```text
+Host devbox
+  HostName 127.0.0.1
+  Port 50022
+  User azureuser
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+**4. Open the tunnel** in PowerShell and keep that window open while you work:
+
+```powershell
+az network bastion tunnel -g rg-foundry-private-teams-demo -n devbox-bastion `
+  --target-resource-id /subscriptions/<subscription-id>/resourceGroups/rg-foundry-private-teams-demo/providers/Microsoft.Compute/virtualMachines/devbox `
+  --resource-port 22 --port 50022
+```
+
+Wait for `Tunnel is ready`. A `ResourceNotFound` error means Bastion is still being created.
+
+**5. Connect VS Code:** run **Remote-SSH: Connect to Host… → devbox**. The window title shows `SSH: devbox`.
+
+**6. Open the repository in the dev container on the VM:**
+
+1. Commit and push local changes first; the VM clones the repository and the [dev container](.devcontainer/devcontainer.json) comes with it.
+2. In the VM terminal, `git clone` the repository, then **File → Open Folder…** on the clone.
+3. Create `.env` in the repository root (it is gitignored) with the same contents as your local file.
+4. Run **Dev Containers: Reopen in Container**. If Docker reports `permission denied ... docker.sock`, run **Remote-SSH: Kill VS Code Server on Host… → devbox** and reconnect.
+5. In the container terminal, run `az login` and `azd auth login` as yourself (the `Shared` publish scope makes the agent visible to the publisher), and check that `getent hosts <account>.services.ai.azure.com` returns a `10.74.1.x` address.
+6. Run notebook 3 cells 3, 5 and 7, then continue with deployment and publishing.
+
+Pull on the devbox before editing there, and on your laptop after pushing from the devbox, to avoid divergent branches.
+
+**Costs:** Bastion Standard and the VM are billed hourly. Deallocate the VM when idle (`az vm deallocate -g rg-foundry-private-teams-demo -n devbox`) and delete Bastion after the demo (`az network bastion delete -g rg-foundry-private-teams-demo -n devbox-bastion`); the notebook's resource-group cleanup removes both.
 
 **Publishing notes:** replace the Contoso developer metadata before publishing. Republishing the same `app_version` fails. The Teams catalog can take about an hour to show the agent under **Your agents**. Remove the app from Teams before deleting Azure resources; resource deletion does not clean up the Microsoft 365 catalog.
+
+## Notebook 5: Agent2Agent (A2A)
+
+[foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb) explains A2A — the open protocol that lets one agent discover another, hand it a task, and receive progress and results — using **protocol 1.0** and the `a2a-sdk` Python package.
+
+| Part | Steps | Needs |
+| --- | --- | --- |
+| **1 · The protocol** | 0–7 | Only Python. A real A2A server (a *Claims Triage Agent*) runs inside the notebook on `127.0.0.1:41241`; nothing leaves your machine. This is the part to demo live. |
+| **2 · Microsoft Foundry** | 8–11 | A Foundry project for the live cells. Without `FOUNDRY_PROJECT_ENDPOINT`, the cells print the configuration they would send, so the notebook still runs top to bottom. |
+
+### The pieces
+
+```mermaid
+flowchart LR
+  subgraph Client["A2A client (the calling agent)"]
+    R["A2ACardResolver"]
+    C["client = create_client(card)"]
+  end
+
+  subgraph Server["A2A server · http://127.0.0.1:41241"]
+    CARD["GET /.well-known/agent-card.json<br/>Agent Card: name, skills,<br/>capabilities, supported_interfaces"]
+    RPC["POST /a2a/jsonrpc<br/>JSON-RPC: SendMessage, GetTask, CancelTask"]
+    H["DefaultRequestHandler"]
+    E["ClaimsTriageExecutor<br/>(your agent logic)"]
+    S[("InMemoryTaskStore<br/>tasks, history, artifacts")]
+  end
+
+  R -- "1 · discover" --> CARD
+  C -- "2 · SendMessage<br/>header A2A-Version: 1.0" --> RPC
+  RPC --> H --> E
+  H <--> S
+  E -- "events: Task, status, artifact" --> H
+  H -- "stream of events back" --> C
+```
+
+- The **Agent Card** is the agent's public description; a client reads it before its first request.
+- **JSON-RPC** is the single endpoint for work. A request without `A2A-Version: 1.0` is treated as protocol 0.3 (step 7).
+- The **executor** is the only class you write; the **task store** is what lets a task survive between messages.
+
+### One conversation, step by step (notebook steps 4–6)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Client as A2A client
+  participant Agent as Claims Triage Agent
+  participant Store as Task store
+
+  Client->>Agent: GET agent card
+  Agent-->>Client: card: skill triage-claim, JSON-RPC, protocol 1.0
+
+  Note over Client,Agent: Step 5 — happy path
+  Client->>Agent: SendMessage "Windscreen chip, policy MOT-4471"
+  Agent->>Store: new Task (SUBMITTED)
+  Agent-->>Client: status WORKING
+  Agent-->>Client: artifact triage-decision: priority=LOW route=glass-partner
+  Agent-->>Client: status COMPLETED
+
+  Note over Client,Agent: Step 6 — interrupted, not failed
+  Client->>Agent: SendMessage "Someone reversed into my bumper"
+  Agent->>Store: new Task T2 (SUBMITTED)
+  Agent-->>Client: status INPUT_REQUIRED: "Which policy?"
+  Client->>Agent: SendMessage "policy MOT-9930" (same task_id T2)
+  Agent->>Store: resume T2, read its history
+  Agent-->>Client: artifact + status COMPLETED (still T2)
+
+  Note over Client,Agent: Refinement — new task, same context
+  Client->>Agent: SendMessage "driver reported neck pain" (same context_id)
+  Agent->>Store: new Task T4, same context
+  Agent-->>Client: artifact priority=HIGH + COMPLETED
+```
+
+Results arrive as **artifacts**, not as chat text: a message is conversation, an artifact is the deliverable.
+
+### A task's lifecycle
+
+```mermaid
+stateDiagram-v2
+  [*] --> SUBMITTED: first message
+  SUBMITTED --> WORKING
+  WORKING --> INPUT_REQUIRED: needs more info
+  INPUT_REQUIRED --> WORKING: reply on the same task_id
+  WORKING --> COMPLETED: artifact delivered
+  WORKING --> FAILED
+  WORKING --> CANCELED: CancelTask
+  COMPLETED --> [*]
+  FAILED --> [*]
+  CANCELED --> [*]
+```
+
+- **`INPUT_REQUIRED`** is suspended, not finished: the task keeps its id and resumes when the caller answers on the same `task_id`. This is what a plain tool call cannot express.
+- **`COMPLETED`** is terminal and cannot be reopened; refining a result is a **new task with the same `context_id`**. Correlate your own logs on `context_id`.
+
+### Where Foundry fits (Part 2)
+
+```mermaid
+flowchart LR
+  subgraph Outbound["Outbound (GA): Foundry calls out"]
+    FA["Foundry agent<br/>concierge-agent"] -- "a2a tool, protocol 1.0<br/>via RemoteA2A connection" --> RA["Any remote A2A agent<br/>(like the claims agent above)"]
+  end
+
+  subgraph Inbound["Inbound (preview): Foundry is called"]
+    AC["Any A2A client<br/>(the Part 1 SDK)"] -- "Entra token + agentCard/v1.0<br/>role: Foundry Agent Consumer" --> FB["Foundry agent exposed<br/>through protocol_configuration.a2a"]
+  end
+```
+
+| Direction | Foundry configuration | Status |
+| --- | --- | --- |
+| Outbound — a Foundry agent delegates to a remote A2A agent | `RemoteA2A` project connection + `a2a` tool at protocol `1.0` on a prompt agent | Generally available (`a2a_preview` = protocol 0.3, preview) |
+| Inbound — a Foundry agent is called over A2A | PATCH `agent_endpoint.protocol_configuration` with `a2a` **and** `responses` (the PATCH replaces the collection) | Preview, Entra ID only |
+
+**Before running:**
+
+- Part 1 needs `a2a-sdk[http-server]>=1.1.4`, `uvicorn` and `httpx` (in [requirements.txt](requirements.txt)). Restart the kernel after the install cell.
+- Part 2's outbound step needs a `RemoteA2A` connection created beforehand (portal, ARM or `azd ai connection create`) and the **Foundry Project Manager** / **Foundry User** roles. Inbound callers need **Foundry Agent Consumer** and must resolve the `agentCard/v1.0` path; an unversioned request is served protocol 0.3.
+- Check the identity table in step 11 early: only **OAuth identity passthrough** preserves the end user's identity at the remote agent. Foundry A2A targets are text-only, JSON-RPC only, and do not stream.
 
 ## Prerequisites
 
@@ -149,7 +317,7 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 
 | Variable | Used for |
 | --- | --- |
-| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2 and 4: `https://<account>.services.ai.azure.com/api/projects/<project>` |
+| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4 and 5 (Part 2): `https://<account>.services.ai.azure.com/api/projects/<project>` |
 | `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1, 2 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
@@ -158,6 +326,8 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
 | `APIM_GATEWAY_URL` | Optional gateway section: gateway URL including the imported API suffix |
 | `APIM_SUBSCRIPTION_KEY` | Optional gateway section: subscription key authorized for that API |
+| `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: name of the `RemoteA2A` project connection; defaults to `claims-a2a` |
+| `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: Foundry agent that gets the A2A tool or endpoint; defaults to `concierge-agent` |
 | `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
 
 The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
@@ -180,6 +350,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 4. In notebook 2, connect and invoke the hosted assistant. Run the briefing start cell, then promptly run steering while the first turn is active, followed by the polling cell. Skip steering to finish the original sourcing brief.
 5. Inspect the completed deliverable and telemetry. Run the optional gateway section only after configuring API Management.
 6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
+7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument), then walk through Part 2's payloads and identity table rather than publishing live.
 
 Avoid blindly using **Run All**: steering is timing-sensitive, some cells modify Azure resources, and notebook 1 ends with a destructive cleanup cell. Repeated setup can also change which agent version subsequent name-only references select.
 
@@ -199,14 +370,15 @@ Notebook 1's cleanup cell deletes its memory store; agent and toolbox deletion e
 
 For hosted resources, follow the agent guide and review the selected azd environment before using `azd down`. Review separately managed resources such as API Management separately; do not assume the notebook cleanup removes all chargeable resources.
 
-Notebook 3's private environment (VNet, private endpoint, model, hosted compute, Bot Service, telemetry, and the devbox VM) is billable while it exists. Its last cell deletes the whole dedicated resource group, including the devbox. If a capability host blocks subnet reuse, follow the pinned sample's cleanup guidance.
+Notebook 3's private environment (VNet, private endpoint, model, hosted compute, Bot Service, telemetry, the devbox VM, and Bastion) is billable while it exists. Its last cell deletes the whole dedicated resource group, including the devbox and Bastion. If a capability host blocks subnet reuse, follow the pinned sample's cleanup guidance.
 
 ## Repository Guide
 
-- [foundry-demo.ipynb](foundry-demo.ipynb): platform features and managed prompt-agent lifecycle.
+- [foundry-demo-1-what-is-new.ipynb](foundry-demo-1-what-is-new.ipynb): platform features and managed prompt-agent lifecycle.
 - [foundry-demo-2-hosted-agents.ipynb](foundry-demo-2-hosted-agents.ipynb): hosted services, procurement brief, telemetry, and gateway.
 - [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
 - [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
+- [foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb): the A2A 1.0 protocol with a local server and client, plus outbound and inbound A2A in Foundry.
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.

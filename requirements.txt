@@ -42,3 +42,8 @@ tiktoken>=0.8.0
 jupyter>=1.1.0
 ipykernel>=6.29.0
 python-dotenv>=1.0.0
+
+# A2A demo notebook — Part 1 (the protocol, runs offline)
+a2a-sdk[http-server]>=1.1.4      # implements A2A protocol 1.0; <1.1.5 caps protobuf<7 (fine with protobuf 6.x)
+uvicorn>=0.30                    # not a dependency of a2a-sdk — install explicitly
+httpx>=0.28.1
