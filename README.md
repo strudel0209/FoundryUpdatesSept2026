@@ -1,6 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Five notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, and the Agent2Agent (A2A) protocol.
+Six notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, and Azure Content Understanding.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -13,6 +13,7 @@ These are hands-on presentation demos, not production application templates. Not
 | [Notebook 3: Private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) | Provision a private Foundry project and publish to Teams | VNet-injected Foundry, private endpoint access, azd source deployment, Azure Bot Service, the Activity Protocol route, and Microsoft 365 publishing |
 | [Notebook 4: Prompt caching](foundry-demo-4-promp-caching.ipynb) | Observe cache reads and writes on the public project | Cold/warm calls, prefix sensitivity, prompt layout, append-only history, explicit breakpoints with `prompt_cache_key`, and reuse ratios |
 | [Notebook 5: Agent2Agent (A2A)](foundry-demo-5-a2a.ipynb) | Run an A2A 1.0 server and client locally, then configure A2A in Foundry | Agent Card discovery, tasks and their states, input-required and resume, artifacts, wire format, the outbound `a2a` tool, and the inbound A2A endpoint |
+| [Notebook 6: Content Understanding](foundry-demo-6-content-understanding.ipynb) | Build an accounts-payable document pipeline one capability at a time | Markdown extraction, prebuilt invoice fields, a custom analyzer, confidence-based straight-through processing, classification and segmentation, and the preview agentic workflow and inline analysis |
 
 ## Notebook 1: Platform Features
 
@@ -294,6 +295,30 @@ flowchart LR
 - The outbound target must be reachable from Foundry: a placeholder URL or the Part 1 server on `127.0.0.1` fails with *"Error encountered while fetching agent card"*, which surfaces as a JSON-RPC `InternalError` when that agent is itself called over A2A. Use a new connection name when changing a target; an updated connection can keep its old target for a while.
 - Check the identity table in step 11 early: only **OAuth identity passthrough** preserves the end user's identity at the remote agent. Foundry A2A targets are text-only, JSON-RPC only, and do not stream.
 
+## Notebook 6: Content Understanding
+
+[foundry-demo-6-content-understanding.ipynb](foundry-demo-6-content-understanding.ipynb) builds an accounts-payable pipeline for supplier PDFs with the native `azure-ai-contentunderstanding` SDK, adding one capability per step. It calls the Foundry **resource** endpoint (`CONTENTUNDERSTANDING_ENDPOINT`), not the project endpoint.
+
+| Step | Functionality | API |
+| --- | --- | --- |
+| 0 | Connect with Entra ID (or a key) and read or set the resource's model-deployment defaults | GA `2025-11-01` |
+| 1–2 | `prebuilt-documentSearch` to Markdown, from a URL or local bytes, with `content_range` and `to_llm_input()` | GA |
+| 3 | Typed invoice fields and line items from `prebuilt-invoice` with no configuration | GA |
+| 4 | A custom analyzer with its own schema, using `EXTRACT`, `CLASSIFY` and `GENERATE` fields | GA |
+| 5 | Confidence scores and source grounding to split fields into straight-through and human review | GA |
+| 6 | A classifier with segmentation that splits a mixed PDF into invoice, delivery note and statement | GA |
+| 7 | Agentic workflow for derived values, such as an average line price and a totals reconciliation | Preview `2026-06-01-preview` |
+| 8 | `analyze_binary_inline`: synchronous, in-memory analysis without polling | Preview |
+| 9 | Delete results and the analyzers the notebook created | GA |
+
+**Before running:**
+
+- The resource must be in a [Content Understanding region](https://learn.microsoft.com/azure/ai-services/content-understanding/language-region-support), and your identity needs **Cognitive Services User** on it, even as the owner.
+- Content Understanding brings no models of its own. Deploy a supported completion model and `text-embedding-3-large`, and map them in the resource defaults (step 0, or Content Understanding Studio). `gpt-5.2` is the documented recommendation; newer deployments that are not on the [supported-models list](https://learn.microsoft.com/azure/ai-services/content-understanding/service-limits#supported-generative-models) cannot be used. Avoid mini and nano models when the confidence threshold matters.
+- Steps 7–8 need the pre-release SDK (`azure-ai-contentunderstanding>=1.2.0b3`, pinned in [requirements.txt](requirements.txt)).
+- The notebook downloads its sample PDFs from the Azure SDK samples repository into `sample_files/`; set the `CU_*_PATH` variables to use your own documents instead.
+- Content extraction and contextualization are billed by Content Understanding, and the model tokens on your own deployment. The agentic workflow uses the higher advanced-contextualization rate and inline analysis costs about 50% more per page.
+
 ## Prerequisites
 
 - An Azure subscription and an existing Foundry project with appropriate feature and regional availability.
@@ -330,6 +355,11 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: `RemoteA2A` connection the notebook creates; defaults to `claims-triage-a2a` |
 | `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: calling agent that carries the A2A tool; defaults to `concierge-agent` |
 | `FOUNDRY_A2A_TARGET_AGENT` | Notebook 5 Part 2: agent exposed over inbound A2A and used as the outbound target; defaults to `claims-triage-foundry` |
+| `CONTENTUNDERSTANDING_ENDPOINT` | Notebook 6: Foundry resource endpoint, `https://<resource>.services.ai.azure.com/` |
+| `CONTENTUNDERSTANDING_KEY` | Notebook 6, optional: API key; leave unset to use Entra ID |
+| `CU_COMPLETION_MODEL` / `CU_EMBEDDING_MODEL` | Notebook 6: model **names** the analyzers request; the resource defaults map them to deployments |
+| `CU_COMPLETION_DEPLOYMENT` / `CU_EMBEDDING_DEPLOYMENT` | Notebook 6, optional: deployment names for the `update_defaults` cell |
+| `CU_SAMPLE_DOC_PATH` / `CU_MIXED_BATCH_PATH` / `CU_AGENTIC_DOC_PATH` | Notebook 6, optional: your own PDFs instead of the downloaded samples |
 | `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
 
 The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
@@ -353,6 +383,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 5. Inspect the completed deliverable and telemetry. Run the optional gateway section only after configuring API Management.
 6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
 7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument), then walk through Part 2's payloads and identity table rather than publishing live.
+8. For notebook 6, check the resource defaults in step 0 first, then run steps 1–6 on the GA API; present steps 7–8 as preview.
 
 Avoid blindly using **Run All**: steering is timing-sensitive, some cells modify Azure resources, and notebook 1 ends with a destructive cleanup cell. Repeated setup can also change which agent version subsequent name-only references select.
 
@@ -372,6 +403,8 @@ Notebook 1's cleanup cell deletes its memory store; agent and toolbox deletion e
 
 For hosted resources, follow the agent guide and review the selected azd environment before using `azd down`. Review separately managed resources such as API Management separately; do not assume the notebook cleanup removes all chargeable resources.
 
+Notebook 6 deletes the analyzers it created and one stored analysis result in step 9; analyzers left behind by skipped cells persist until deleted.
+
 Notebook 3's private environment (VNet, private endpoint, model, hosted compute, Bot Service, telemetry, the devbox VM, and Bastion) is billable while it exists. Its last cell deletes the whole dedicated resource group, including the devbox and Bastion. If a capability host blocks subnet reuse, follow the pinned sample's cleanup guidance.
 
 ## Repository Guide
@@ -381,6 +414,7 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
 - [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
 - [foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb): the A2A 1.0 protocol with a local server and client, plus outbound and inbound A2A in Foundry.
+- [foundry-demo-6-content-understanding.ipynb](foundry-demo-6-content-understanding.ipynb): Content Understanding from Markdown extraction to custom analyzers, classification, and preview agentic and inline analysis.
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
