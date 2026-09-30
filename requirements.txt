@@ -34,6 +34,9 @@ azure-search-documents>=11.6.0
 # --- Offline prompt-prefix token counting (NB4) ---
 tiktoken>=0.8.0
 
+# --- Content Understanding walkthrough (steps 7-8 use API 2026-06-01-preview) ---
+azure-ai-contentunderstanding>=1.2.0b3   # pre-release pin: 1.1.0 lacks ContentAnalyzerWorkflow and analyze_binary_inline
+
 # --- Agent Framework and agent-server libraries (local runs of the NB2 agents; mention-only in NB1) ---
 -r agent/src/demo-hosted-agent/requirements.txt
 -r agent/src/demo-long-running-agent/requirements.txt
