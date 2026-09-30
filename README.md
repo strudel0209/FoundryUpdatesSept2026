@@ -274,7 +274,7 @@ stateDiagram-v2
 ```mermaid
 flowchart LR
   subgraph Outbound["Outbound (GA): Foundry calls out"]
-    FA["Foundry agent<br/>concierge-agent"] -- "a2a tool, protocol 1.0<br/>via RemoteA2A connection" --> RA["Any remote A2A agent<br/>(like the claims agent above)"]
+    FA["Foundry agent<br/>concierge-agent"] -- "a2a tool, protocol 1.0<br/>via RemoteA2A connection" --> RA["Remote A2A agent<br/>(here: claims-triage-foundry)"]
   end
 
   subgraph Inbound["Inbound (preview): Foundry is called"]
@@ -290,7 +290,8 @@ flowchart LR
 **Before running:**
 
 - Part 1 needs `a2a-sdk[http-server]>=1.1.4`, `uvicorn` and `httpx` (in [requirements.txt](requirements.txt)). Restart the kernel after the install cell.
-- Part 2's outbound step needs a `RemoteA2A` connection created beforehand (portal, ARM or `azd ai connection create`) and the **Foundry Project Manager** / **Foundry User** roles. Inbound callers need **Foundry Agent Consumer** and must resolve the `agentCard/v1.0` path; an unversioned request is served protocol 0.3.
+- Part 2 runs Foundry to Foundry: step 9 exposes `claims-triage-foundry` over inbound A2A, step 10 calls it with the Part 1 SDK, and `concierge-agent` (step 8) delegates to it through a `RemoteA2A` connection with `AgenticIdentityToken` auth. The notebook creates the connection with `azd ai connection create --kind remote-a2a --auth-type agentic-identity` and uses `az role assignment create` to grant the calling agent's identity **Foundry Agent Consumer**, so you need **Foundry Project Manager** / **Foundry User** plus permission to create role assignments. Inbound callers must resolve the `agentCard/v1.0` path; an unversioned request is served protocol 0.3.
+- The outbound target must be reachable from Foundry: a placeholder URL or the Part 1 server on `127.0.0.1` fails with *"Error encountered while fetching agent card"*, which surfaces as a JSON-RPC `InternalError` when that agent is itself called over A2A. Use a new connection name when changing a target; an updated connection can keep its old target for a while.
 - Check the identity table in step 11 early: only **OAuth identity passthrough** preserves the end user's identity at the remote agent. Foundry A2A targets are text-only, JSON-RPC only, and do not stream.
 
 ## Prerequisites
@@ -326,8 +327,9 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
 | `APIM_GATEWAY_URL` | Optional gateway section: gateway URL including the imported API suffix |
 | `APIM_SUBSCRIPTION_KEY` | Optional gateway section: subscription key authorized for that API |
-| `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: name of the `RemoteA2A` project connection; defaults to `claims-a2a` |
-| `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: Foundry agent that gets the A2A tool or endpoint; defaults to `concierge-agent` |
+| `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: `RemoteA2A` connection the notebook creates; defaults to `claims-triage-a2a` |
+| `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: calling agent that carries the A2A tool; defaults to `concierge-agent` |
+| `FOUNDRY_A2A_TARGET_AGENT` | Notebook 5 Part 2: agent exposed over inbound A2A and used as the outbound target; defaults to `claims-triage-foundry` |
 | `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
 
 The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
