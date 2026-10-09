@@ -2,7 +2,7 @@
 
 Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
 
-These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
+These are hands-on presentation demos, not production application templates. Notebook headings reference slides in the accompanying presentations in [decks/](decks/); the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
 ## Choose a Notebook
 
@@ -16,6 +16,21 @@ These are hands-on presentation demos, not production application templates. Not
 | [Notebook 6: Content Understanding](foundry-demo-6-content-understanding.ipynb) | Build an accounts-payable document pipeline one capability at a time | Markdown extraction, prebuilt invoice fields, a custom analyzer, confidence-based straight-through processing, classification and segmentation, and the preview agentic workflow and inline analysis |
 | [Notebook 7: Voice Live and voice agents](foundry-demo-7-voice-live.ipynb) | Build an IT service-desk voice assistant step by step | Voice Live sessions, voices, turn detection, model choice, function tools, voice in front of a Foundry agent, and preview Foundry voice agents with stored conversations |
 | [Notebook 8: AI gateway governance](foundry-demo-8-ai-gateway-governance.ipynb) | Govern an existing API Management instance in front of Foundry | Per-team token limits and quotas, usage attribution, content safety, semantic caching, backend pools, MCP and A2A governance, AI Gateway in Foundry, and end-to-end tracing |
+
+## Slide Decks
+
+The [decks/](decks/) folder holds the PowerPoint presentations that accompany the notebooks. Slide references in notebook headings (for example, "slides 11, 14" in notebook 1) point to these decks.
+
+| Deck | Pairs with |
+| --- | --- |
+| [Microsoft-Foundry-Whats-New-2026-10.pptx](<decks/Microsoft-Foundry-Whats-New-2026-10.pptx>) | Notebook 1: platform features |
+| [Microsoft Foundry Guardrails - Tuning Without Over-Blocking.pptx](<decks/Microsoft Foundry Guardrails - Tuning Without Over-Blocking.pptx>) | Notebook 1: guardrails section |
+| [Microsoft Foundry Hosted Agents.pptx](<decks/Microsoft Foundry Hosted Agents.pptx>) | Notebooks 2 and 3: hosted agents |
+| [Microsoft Foundry Prompt Caching.pptx](<decks/Microsoft Foundry Prompt Caching.pptx>) | Notebook 4: prompt caching |
+| [Microsoft Foundry Agent2Agent-A2A.pptx](<decks/Microsoft Foundry Agent2Agent-A2A.pptx>) | Notebook 5: Agent2Agent (A2A) |
+| [Microsoft Foundry Content-Understanding.pptx](<decks/Microsoft Foundry Content-Understanding.pptx>) | Notebook 6: Content Understanding |
+| [Microsoft Foundry Voice Live-Voice Agents.pptx](<decks/Microsoft Foundry Voice Live-Voice Agents.pptx>) | Notebook 7: Voice Live and voice agents |
+| [Microsoft Foundry AI Gateway.pptx](<decks/Microsoft Foundry AI Gateway.pptx>) | Notebook 8 (and notebook 2's gateway section): AI gateway governance |
 
 ## Notebook 1: Platform Features
 
@@ -520,6 +535,7 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo-6-content-understanding.ipynb](foundry-demo-6-content-understanding.ipynb): Content Understanding from Markdown extraction to custom analyzers, classification, and preview agentic and inline analysis.
 - [foundry-demo-7-voice-live.ipynb](foundry-demo-7-voice-live.ipynb): Voice Live sessions and tools, voice for a Foundry agent, and preview Foundry voice agents.
 - [foundry-demo-8-ai-gateway-governance.ipynb](foundry-demo-8-ai-gateway-governance.ipynb): governing models, MCP tools and agents with API Management as the AI gateway.
+- [decks/](decks/): PowerPoint decks that accompany the notebooks (see [Slide Decks](#slide-decks)).
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
