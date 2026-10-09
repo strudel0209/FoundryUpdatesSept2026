@@ -1,6 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Six notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, and Azure Content Understanding.
+Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in an accompanying presentation; the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -14,6 +14,8 @@ These are hands-on presentation demos, not production application templates. Not
 | [Notebook 4: Prompt caching](foundry-demo-4-promp-caching.ipynb) | Observe cache reads and writes on the public project | Cold/warm calls, prefix sensitivity, prompt layout, append-only history, explicit breakpoints with `prompt_cache_key`, and reuse ratios |
 | [Notebook 5: Agent2Agent (A2A)](foundry-demo-5-a2a.ipynb) | Run an A2A 1.0 server and client locally, then configure A2A in Foundry | Agent Card discovery, tasks and their states, input-required and resume, artifacts, wire format, the outbound `a2a` tool, and the inbound A2A endpoint |
 | [Notebook 6: Content Understanding](foundry-demo-6-content-understanding.ipynb) | Build an accounts-payable document pipeline one capability at a time | Markdown extraction, prebuilt invoice fields, a custom analyzer, confidence-based straight-through processing, classification and segmentation, and the preview agentic workflow and inline analysis |
+| [Notebook 7: Voice Live and voice agents](foundry-demo-7-voice-live.ipynb) | Build an IT service-desk voice assistant step by step | Voice Live sessions, voices, turn detection, model choice, function tools, voice in front of a Foundry agent, and preview Foundry voice agents with stored conversations |
+| [Notebook 8: AI gateway governance](foundry-demo-8-ai-gateway-governance.ipynb) | Govern an existing API Management instance in front of Foundry | Per-team token limits and quotas, usage attribution, content safety, semantic caching, backend pools, MCP and A2A governance, AI Gateway in Foundry, and end-to-end tracing |
 
 ## Notebook 1: Platform Features
 
@@ -319,6 +321,89 @@ flowchart LR
 - The notebook downloads its sample PDFs from the Azure SDK samples repository into `sample_files/`; set the `CU_*_PATH` variables to use your own documents instead.
 - Content extraction and contextualization are billed by Content Understanding, and the model tokens on your own deployment. The agentic workflow uses the higher advanced-contextualization rate and inline analysis costs about 50% more per page.
 
+## Notebook 7: Voice Live and Voice Agents
+
+[foundry-demo-7-voice-live.ipynb](foundry-demo-7-voice-live.ipynb) builds a voice assistant for an IT service-desk phone line: it answers simple questions, looks up ticket status through a tool, and hands everything else to a person. The caller's words are typed or streamed from a generated recording, and the spoken reply plays in the notebook, so no microphone or PortAudio is needed.
+
+| Part | Steps | Functionality | Status |
+| --- | --- | --- | --- |
+| A · Voice Live API | 1–5 | Session and greeting, HD and standard voices, audio streaming with turn detection, noise and echo control, a single speech model versus three stages, and function tools | GA (API `2026-07-15`) |
+| B · Voice Live with a Foundry agent | 6 | Give an existing text agent a voice by agent name | GA |
+| C · Foundry voice agent | 7–9 | Versioned voice-agent definition, a live session, and the stored transcript, usage and audio | **Preview** |
+
+**Before running:**
+
+- The resource must be in a [Voice Live region](https://learn.microsoft.com/azure/ai-services/speech-service/regions) that supports agents, and your account needs **Cognitive Services User** and **Foundry User**. Authentication is Entra ID only; agent mode does not accept keys.
+- Voice Live models (steps 1–5) are fully managed and need no deployment. Step 6 needs a text model deployment (`FOUNDRY_TEXT_MODEL_DEPLOYMENT`).
+- Part C needs the voice-agents preview in your subscription and region, with no SLA. It uses `azure-ai-projects[voice]`, pinned in [requirements.txt](requirements.txt).
+- Step 6 and step 9 delete the agent versions they created. Conversation deletion is commented out; stored recordings are personal data, so set a retention and consent policy before enabling `store=True` outside a demo.
+- Billing is per token (text, audio, native audio) at the model's tier. Standard limits are 100 new connections per minute, 60-minute sessions, and 120,000 tokens per minute per resource.
+
+## Notebook 8: AI Gateway Governance
+
+[foundry-demo-8-ai-gateway-governance.ipynb](foundry-demo-8-ai-gateway-governance.ipynb) uses one Azure API Management instance as the AI gateway in front of a shared Foundry resource. Two teams, **Claims** (generous capacity) and **Marketing** (a small pilot), each get their own product and subscription key. The platform team adds limits, attribution, safety, caching and tracing without changing application code. Every change goes through the native `azure-mgmt-apimanagement` SDK.
+
+The notebook **does not deploy infrastructure**; it changes policies, products, subscriptions, backends and diagnostics on an existing instance.
+
+| Step | What it governs | Status |
+| --- | --- | --- |
+| 0 | Setup, API discovery, and a backup of the model API's current policy | — |
+| 1 | Baseline model call through the gateway | GA |
+| 2 | Per-team products and subscriptions with `llm-token-limit` (429 per minute, 403 per monthly quota) | GA |
+| 3 | Usage attribution: `llm-emit-token-metric`, LLM logs in `ApiManagementGatewayLlmLog`, W3C correlation | GA |
+| 4 | `llm-content-safety` with prompt shields | GA |
+| 5 | Semantic caching with Azure Managed Redis | GA |
+| 6 | Backend pool with a circuit breaker (optional) | GA |
+| 7 | MCP server governance: rate limit and content safety on tools (optional) | GA |
+| 8 | Agent governance: A2A agent API, and a Foundry agent's model calls through the gateway (optional) | A2A GA; agent part **check status** |
+| 9 | AI Gateway in Foundry per-project limits (portal setup) | **Preview** |
+| 10 | OpenTelemetry trace from client through gateway, plus KQL dashboards | GA |
+| 11 | Restore the original policy and remove what the notebook created | — |
+
+Steps 3–6 rebuild the model API policy from the backup each time, so rerunning a step replaces its own fragment instead of adding it twice. Optional steps skip themselves when their settings are empty.
+
+### How semantic caching works (step 5)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client (team key)
+    participant A as APIM (inbound/outbound policy)
+    participant E as Embeddings backend<br/>(embeddings deployment)
+    participant R as Azure Managed Redis<br/>(RediSearch vector index)
+    participant M as Chat model
+
+    C->>A: POST /chat/completions "What is a token limit?"
+    A->>E: embed the prompt (managed identity)
+    E-->>A: vector [0.12, -0.03, ...]
+    A->>R: similarity search<br/>partition = subscription id (vary-by)
+    alt Cache HIT (distance ≤ 0.05)
+        R-->>A: stored answer
+        A-->>C: 200 cached answer (no chat-model tokens used)
+    else Cache MISS
+        R-->>A: nothing close enough
+        A->>A: rate-limit-by-key (protects the model)
+        A->>M: forward request
+        M-->>A: answer
+        A->>R: llm-semantic-cache-store (vector + answer, 300 s)
+        A-->>C: 200 fresh answer
+    end
+```
+
+- **`score-threshold="0.05"`** is the maximum distance for a match: lower is stricter. Above 0.2 risks returning an answer to a different question.
+- **`vary-by` subscription** partitions the cache per team, so one team never receives another team's cached answer.
+- **`duration="300"`** keeps answers for 5 minutes.
+- **`rate-limit-by-key`** after the lookup only affects misses, so traffic can't flood the model if the cache is unavailable.
+- Every request costs one embeddings call; a hit saves the much larger chat-completion call. Use caching for stable, low-risk Q&A, not per-customer data.
+
+**Before running:**
+
+- Use a **non-production** API Management instance on a **v2 tier** with a system-assigned managed identity. Step 0 saves the policy to `policy-backup-<api>.xml` and step 11 restores it. Prefer a model API you imported yourself over one created and managed by AI Gateway in Foundry.
+- Your account needs *API Management Service Contributor* and *Monitoring Contributor* on the instance and *Log Analytics Reader* on the workspace. The gateway's identity needs *Cognitive Services User* on the Foundry resource and on the Content Safety resource.
+- SDK 5.0.0 cannot model LLM logging or managed-identity backends, so those calls send JSON through the SDK on `APIM_ARM_API_VERSION`. The instance's diagnostic setting is created with the Azure CLI.
+- In Application Insights, turn on *custom metrics with dimensions*, or the token-metric dimensions are dropped. `LOG_LLM_MESSAGES=true` records prompts and completions in Log Analytics; leave it `false` unless your data policy allows it.
+- Step 5 needs **Azure Managed Redis with the RediSearch module**, which must be enabled when the database is created and requires the *Enterprise* clustering policy, the *NoEviction* eviction policy and access-key authentication. Flash Optimized does not support RediSearch; Balanced B0 is enough for the demo. It also needs an embeddings deployment in the same Foundry resource.
+
 ## Prerequisites
 
 - An Azure subscription and an existing Foundry project with appropriate feature and regional availability.
@@ -327,7 +412,7 @@ flowchart LR
 - Azure CLI authentication usable by `DefaultAzureCredential`. Deploying services and creating notebook toolbox connections also require Azure Developer CLI and the relevant Foundry extensions, described in the agent guide.
 - Permissions to invoke models and manage the demo resources. The role-assignment cell additionally requires permission to assign roles, and querying telemetry requires log-read access.
 - Application Insights connected to the project for tracing, and configured knowledge connections for the notebook 1 toolbox examples.
-- An existing API Management gateway only if you run the gateway section.
+- An existing API Management gateway only if you run notebook 2's gateway section or notebook 8.
 
 ## Local Setup
 
@@ -343,14 +428,14 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 
 | Variable | Used for |
 | --- | --- |
-| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4 and 5 (Part 2): `https://<account>.services.ai.azure.com/api/projects/<project>` |
+| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4, 5 (Part 2) and 7: `https://<account>.services.ai.azure.com/api/projects/<project>` |
 | `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1, 2 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
 | `HOSTED_AGENT_NAME` | Notebook 2 hosted assistant; defaults to `demo-hosted-agent` |
 | `LONG_RUNNING_AGENT_NAME` | Notebook 2 briefing agent; defaults to `demo-long-running-agent` |
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
-| `APIM_GATEWAY_URL` | Optional gateway section: gateway URL including the imported API suffix |
+| `APIM_GATEWAY_URL` | Notebook 2's optional gateway section expects the URL **including** the imported API suffix; notebook 8 expects the **base** URL (`https://<apim>.azure-api.net`). Set it for the notebook you run. |
 | `APIM_SUBSCRIPTION_KEY` | Optional gateway section: subscription key authorized for that API |
 | `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: `RemoteA2A` connection the notebook creates; defaults to `claims-triage-a2a` |
 | `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: calling agent that carries the A2A tool; defaults to `concierge-agent` |
@@ -360,6 +445,18 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `CU_COMPLETION_MODEL` / `CU_EMBEDDING_MODEL` | Notebook 6: model **names** the analyzers request; the resource defaults map them to deployments |
 | `CU_COMPLETION_DEPLOYMENT` / `CU_EMBEDDING_DEPLOYMENT` | Notebook 6, optional: deployment names for the `update_defaults` cell |
 | `CU_SAMPLE_DOC_PATH` / `CU_MIXED_BATCH_PATH` / `CU_AGENTIC_DOC_PATH` | Notebook 6, optional: your own PDFs instead of the downloaded samples |
+| `AZURE_VOICELIVE_ENDPOINT` | Notebook 7: Foundry resource endpoint, `https://<resource>.services.ai.azure.com/` |
+| `FOUNDRY_PROJECT_NAME` | Notebook 7: project name, used when Voice Live connects to an agent |
+| `FOUNDRY_TEXT_MODEL_DEPLOYMENT` | Notebook 7, step 6: text model deployment for the text agent |
+| `VOICELIVE_REALTIME_MODEL` / `VOICELIVE_TEXT_MODEL` / `VOICE_AGENT_MODEL` | Notebook 7, optional: managed Voice Live models; default `gpt-realtime`, `gpt-4.1-mini`, `gpt-realtime` |
+| `AZURE_SUBSCRIPTION_ID` / `AZURE_RESOURCE_GROUP` / `APIM_SERVICE_NAME` | Notebook 8: the API Management instance to govern |
+| `INFERENCE_API_ID` / `INFERENCE_API_PATH` / `INFERENCE_API_STYLE` / `SUBSCRIPTION_KEY_HEADER` / `CHAT_DEPLOYMENT` | Notebook 8: the model API in API Management, its URL suffix, URL shape (`v1` or `azure`), key header, and chat deployment |
+| `BASELINE_SUBSCRIPTION_KEY` | Notebook 8, optional: empty uses the instance's built-in all-access key |
+| `APIM_ARM_API_VERSION` | Notebook 8: preview ARM API version for the calls the SDK cannot model; defaults to `2024-06-01-preview` |
+| `CONTENT_SAFETY_ENDPOINT` | Notebook 8, steps 4, 7 and 8: Content Safety or Foundry resource endpoint |
+| `FOUNDRY_RESOURCE_ENDPOINT` / `EMBEDDINGS_DEPLOYMENT` / `REDIS_CONNECTION_STRING` | Notebook 8, step 5: Foundry resource endpoint, embeddings deployment, and Azure Managed Redis connection string (a secret) |
+| `APPINSIGHTS_*` / `APPLICATIONINSIGHTS_CONNECTION_STRING` / `LOG_ANALYTICS_*` / `LOG_LLM_MESSAGES` | Notebook 8, steps 3 and 10: telemetry destinations and whether prompts and completions are logged |
+| `SECONDARY_FOUNDRY_ENDPOINT` / `MCP_*` / `A2A_*` / `APIM_CONNECTION_NAME` / `FOUNDRY_GATEWAY_*` | Notebook 8, optional steps 6–9 |
 | `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
 
 The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
@@ -384,6 +481,8 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
 7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument), then walk through Part 2's payloads and identity table rather than publishing live.
 8. For notebook 6, check the resource defaults in step 0 first, then run steps 1–6 on the GA API; present steps 7–8 as preview.
+9. For notebook 7, run parts A and B live, then present part C as preview.
+10. For notebook 8, run steps 0–5 and 10 live against a non-production gateway, present step 9 as preview, and finish with step 11.
 
 Avoid blindly using **Run All**: steering is timing-sensitive, some cells modify Azure resources, and notebook 1 ends with a destructive cleanup cell. Repeated setup can also change which agent version subsequent name-only references select.
 
@@ -405,6 +504,10 @@ For hosted resources, follow the agent guide and review the selected azd environ
 
 Notebook 6 deletes the analyzers it created and one stored analysis result in step 9; analyzers left behind by skipped cells persist until deleted.
 
+Notebook 7 deletes the text and voice agent versions it created; the stored voice conversation remains until you run the commented-out delete.
+
+Notebook 8's step 11 restores the original API policies and removes the products, subscriptions, backends and the cache registration. It keeps diagnostics unless `REMOVE_DIAGNOSTICS = True`, and it does **not** delete the Azure Managed Redis instance, which is billed hourly until you delete it.
+
 Notebook 3's private environment (VNet, private endpoint, model, hosted compute, Bot Service, telemetry, the devbox VM, and Bastion) is billable while it exists. Its last cell deletes the whole dedicated resource group, including the devbox and Bastion. If a capability host blocks subnet reuse, follow the pinned sample's cleanup guidance.
 
 ## Repository Guide
@@ -415,6 +518,8 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
 - [foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb): the A2A 1.0 protocol with a local server and client, plus outbound and inbound A2A in Foundry.
 - [foundry-demo-6-content-understanding.ipynb](foundry-demo-6-content-understanding.ipynb): Content Understanding from Markdown extraction to custom analyzers, classification, and preview agentic and inline analysis.
+- [foundry-demo-7-voice-live.ipynb](foundry-demo-7-voice-live.ipynb): Voice Live sessions and tools, voice for a Foundry agent, and preview Foundry voice agents.
+- [foundry-demo-8-ai-gateway-governance.ipynb](foundry-demo-8-ai-gateway-governance.ipynb): governing models, MCP tools and agents with API Management as the AI gateway.
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
