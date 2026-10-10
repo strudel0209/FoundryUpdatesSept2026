@@ -1,0 +1,255 @@
+# A2A 1.0 requests for the local server in foundry-demo-5-a2a.ipynb.
+# Run the notebook through "Serve it" and keep the kernel/server running.
+# The local server uses HTTP, not HTTPS. No authentication is configured here.
+# Click "Send Request" on each numbered request in order; sending a request
+# does not automatically run its prerequisites.
+# Named responses supply task/context IDs below. Hover over a variable to
+# inspect its value. After a kernel restart, start again: RAM tasks are lost.
+# These SendMessage calls return one JSON response, not a stream of events.
+
+@baseUrl = http://127.0.0.1:41241
+@rpcUrl = {{baseUrl}}/a2a/jsonrpc
+@completedTaskId = {{assessClaim.response.body.$.result.task.id}}
+@interruptedTaskId = {{startInterruptedClaim.response.body.$.result.task.id}}
+@claimContextId = {{startInterruptedClaim.response.body.$.result.task.contextId}}
+
+### 1. Discover the agent: read its business card
+# @name agentCard
+GET {{baseUrl}}/.well-known/agent-card.json
+
+### 2. Create and complete a task: all required information is present
+# Expected: result.task.status.state = TASK_STATE_COMPLETED, with an artifact.
+# {{$guid}} generates a fresh message ID each time.
+# @name assessClaim
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "assess-claim",
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "{{$guid}}",
+      "parts": [
+        {
+          "text": "Hail damage to the roof, policy MOT-2210."
+        }
+      ]
+    }
+  }
+}
+
+### 3. Read the completed task from the store
+# GetTask returns the Task directly in result (not result.task).
+# Compare its ID and artifact with request 2; historyLength limits returned history.
+# @name getCompletedTask
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "get-completed-task",
+  "method": "GetTask",
+  "params": {
+    "id": "{{completedTaskId}}",
+    "historyLength": 20
+  }
+}
+
+### 4. Create an interrupted task: deliberately omit the policy number
+# Expected: TASK_STATE_INPUT_REQUIRED and a question, not a failure.
+# This response supplies the task/context IDs used by requests 5-11.
+# @name startInterruptedClaim
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "start-interrupted-claim",
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "{{$guid}}",
+      "parts": [
+        {
+          "text": "Windscreen chip on the motorway."
+        }
+      ]
+    }
+  }
+}
+
+### 5. Inspect the task WHILE it is waiting, before sending request 7
+# Expected: INPUT_REQUIRED, the clarification question, and stored history.
+# @name getWaitingTask
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "get-waiting-task",
+  "method": "GetTask",
+  "params": {
+    "id": "{{interruptedTaskId}}",
+    "historyLength": 20
+  }
+}
+
+### 6. Task-store view: list tasks waiting for input
+# This lists tasks visible to the caller, not an unrestricted memory dump.
+# Expected: request 4's task appears in result.tasks before it is resumed.
+# @name listWaitingTasks
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "list-waiting-tasks",
+  "method": "ListTasks",
+  "params": {
+    "contextId": "{{claimContextId}}",
+    "status": "TASK_STATE_INPUT_REQUIRED",
+    "pageSize": 20
+  }
+}
+
+### 7. Answer the question on the SAME unfinished task
+# Expected: COMPLETED, same task ID/context ID, LOW priority for glass repair.
+# The executor reads this task's history to recover the windscreen description.
+# @name resumeInterruptedClaim
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "resume-interrupted-claim",
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "{{$guid}}",
+      "taskId": "{{interruptedTaskId}}",
+      "contextId": "{{claimContextId}}",
+      "parts": [
+        {
+          "text": "It is policy MOT-9930."
+        }
+      ]
+    }
+  }
+}
+
+### 8. Read the SAME task again after resuming it
+# Compare with request 5: its state is now COMPLETED and an artifact is stored.
+# @name getResumedTask
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "get-resumed-task",
+  "method": "GetTask",
+  "params": {
+    "id": "{{interruptedTaskId}}",
+    "historyLength": 20
+  }
+}
+
+### 9. Refinement: create a NEW task in the SAME context
+# Send contextId but no taskId: the completed task is not reopened.
+# The demo does not load other tasks' history, so repeat the claim/policy details.
+# "injury" is an explicit HIGH-priority keyword in the demo's rule-based triage.
+# Expected: COMPLETED, new task ID, same context ID, HIGH-priority artifact.
+# @name refineClaim
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "refine-claim",
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "{{$guid}}",
+      "contextId": "{{claimContextId}}",
+      "parts": [
+        {
+          "text": "Re-check the windscreen claim, policy MOT-9930: the driver also reported an injury."
+        }
+      ]
+    }
+  }
+}
+
+### 10. Task-store view: list the first page of all visible tasks
+# This shares the notebook's InMemoryTaskStore, so notebook-created tasks may appear.
+# Inspect result.tasks, result.totalSize, and result.nextPageToken.
+# Completed tasks remain stored; this RAM store has no automatic time-based expiry.
+# Kernel/process loss or a new store instance loses these records.
+# @name listTasks
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "list-tasks",
+  "method": "ListTasks",
+  "params": {
+    "pageSize": 20
+  }
+}
+
+### 11. List related tasks in the interrupted claim's context
+# After request 9: two completed tasks, with different IDs and the same context ID.
+# @name listContextTasks
+POST {{rpcUrl}}
+Content-Type: application/json
+A2A-Version: 1.0
+
+{
+  "jsonrpc": "2.0",
+  "id": "list-context-tasks",
+  "method": "ListTasks",
+  "params": {
+    "contextId": "{{claimContextId}}",
+    "pageSize": 20
+  }
+}
+
+
+### Optional: send the 1.0 command with no version header
+# Compare with request 2. The missing selector defaults to 0.3.
+# Inspect the JSON-RPC body for an error, not only the HTTP status.
+# @name versionMismatch
+POST {{rpcUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "version-mismatch",
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "{{$guid}}",
+      "parts": [
+        {
+          "text": "Hail damage to the roof, policy MOT-2210."
+        }
+      ]
+    }
+  }
+}

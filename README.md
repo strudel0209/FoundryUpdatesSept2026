@@ -215,7 +215,7 @@ flowchart LR
 
   subgraph Server["A2A server · http://127.0.0.1:41241"]
     CARD["GET /.well-known/agent-card.json<br/>Agent Card: name, skills,<br/>capabilities, supported_interfaces"]
-    RPC["POST /a2a/jsonrpc<br/>JSON-RPC: SendMessage, GetTask, CancelTask"]
+    RPC["POST /a2a/jsonrpc<br/>JSON-RPC: SendMessage, GetTask, ListTasks, CancelTask"]
     H["DefaultRequestHandler"]
     E["ClaimsTriageExecutor<br/>(your agent logic)"]
     S[("InMemoryTaskStore<br/>tasks, history, artifacts")]
@@ -263,7 +263,7 @@ sequenceDiagram
   Note over Client,Agent: Refinement — new task, same context
   Client->>Agent: SendMessage "driver reported neck pain" (same context_id)
   Agent->>Store: new Task T4, same context
-  Agent-->>Client: artifact priority=HIGH + COMPLETED
+  Agent-->>Client: INPUT_REQUIRED: "Which policy?"
 ```
 
 Results arrive as **artifacts**, not as chat text: a message is conversation, an artifact is the deliverable.
@@ -286,6 +286,43 @@ stateDiagram-v2
 
 - **`INPUT_REQUIRED`** is suspended, not finished: the task keeps its id and resumes when the caller answers on the same `task_id`. This is what a plain tool call cannot express.
 - **`COMPLETED`** is terminal and cannot be reopened; refining a result is a **new task with the same `context_id`**. Correlate your own logs on `context_id`.
+
+### HTTP walkthrough in VS Code (REST Client)
+
+[foundry-demo-5-a2a.http](foundry-demo-5-a2a.http) exposes the requests directly so you can show the URL, headers, JSON payload, and response side by side. It sends its own requests to the notebook's server; it does not intercept the Python client's calls.
+
+**Setup:**
+
+1. Install [REST Client by Huachao Mao](https://marketplace.visualstudio.com/items?itemName=humao.rest-client), extension ID `humao.rest-client`. When using this repository's dev container, install it in the container so it can reach the notebook's local server.
+2. Run notebook 5 through **step 3, "Serve it"**, and keep the kernel and server running. Do not run the shutdown cell yet.
+3. Open [foundry-demo-5-a2a.http](foundry-demo-5-a2a.http). The `.http` extension selects the HTTP language mode automatically. If needed, click the language indicator in VS Code's bottom-right status bar and select **HTTP**, or use **Change Language Mode** from the Command Palette.
+4. Click **Send Request** above each numbered request in order. REST Client displays the response in a separate pane. Sending a request does **not** automatically execute its prerequisites.
+
+The local server is `http://127.0.0.1:41241`: **HTTP, not HTTPS**, with no authentication configured. These requests demonstrate the local protocol, not the authenticated Foundry endpoints in Part 2.
+
+| Requests | What to demonstrate | Expected result |
+| --- | --- | --- |
+| **1–3** | Fetch the Agent Card, assess a claim with all required information, then retrieve its stored task | `COMPLETED`, with the assessment artifact available through `GetTask` |
+| **4–6** | Omit the policy number, inspect the task while it waits, then list waiting tasks in its context | `INPUT_REQUIRED`, a clarification question, and stored history |
+| **7–8** | Supply the policy number on the **same task**, then read it again | Same task and context IDs, now `COMPLETED`, with a LOW-priority glass-repair artifact |
+| **9** | Request a revised assessment as a **new task in the same context** | Different task ID, same context ID, and a HIGH-priority artifact |
+| **10–11** | List the first page of visible tasks, then filter by the claim's context | Stored task records; the context contains the original and revised assessments |
+| **Optional: next page** | Follow request 10's `nextPageToken`, only if one was returned | Another page of tasks; send before changing the task collection |
+| **Optional: missing version** | Send the 1.0 command without `A2A-Version: 1.0` | A version mismatch: the server defaults to 0.3; inspect the JSON-RPC error body, not only the HTTP status |
+
+**Inspect request 5 before sending request 7** to see the interrupted state. Reading the same task after request 7 shows its completed state instead.
+
+**IDs and response shapes:** Named requests capture task and context IDs automatically; no copying is required. For example, `{{startInterruptedClaim.response.body.$.result.task.id}}` references the task created by request 4. Hover over variables to inspect their resolved values. `SendMessage` returns a task under `result.task`, `GetTask` returns it directly under `result`, and `ListTasks` returns records under `result.tasks`. These `SendMessage` requests return one JSON response, not the notebook client's stream of progress events.
+
+**Refinement and memory:** The demo executor reads the current task's history, not other tasks sharing its context. The notebook's "neck pain" follow-up therefore asks for the policy number again. HTTP request 9 repeats the claim and policy details and uses the explicit keyword `injury` so the rule-based assessment completes with HIGH priority. Sharing a context ID groups related tasks; it does not automatically provide cross-task memory.
+
+**Task-store caveats:**
+
+- These requests share the notebook's `InMemoryTaskStore`, so notebook-created tasks and tasks created during validation may also appear in request 10.
+- `GetTask` and `ListTasks` expose task records visible to the caller, not unrestricted access to internal server memory. Listing is paginated.
+- Completed tasks remain stored; this implementation has no automatic time-based expiry. Records live in RAM, not on disk.
+- A kernel/process restart or creating a new store instance loses the records. Restart the walkthrough from its prerequisite requests; previously captured IDs do not restore tasks.
+- Stopping the HTTP listener does not itself erase a still-referenced store in the running kernel, but requests cannot reach it while the server is stopped.
 
 ### Where Foundry fits (Part 2)
 
@@ -494,7 +531,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 4. In notebook 2, connect and invoke the hosted assistant. Run the briefing start cell, then promptly run steering while the first turn is active, followed by the polling cell. Skip steering to finish the original sourcing brief.
 5. Inspect the completed deliverable and telemetry. Run the optional gateway section only after configuring API Management.
 6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
-7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument), then walk through Part 2's payloads and identity table rather than publishing live.
+7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument). Optionally use the [HTTP walkthrough](#http-walkthrough-in-vs-code-rest-client) to show requests and task records before shutting down the local server, then walk through Part 2's payloads and identity table rather than publishing live.
 8. For notebook 6, check the resource defaults in step 0 first, then run steps 1–6 on the GA API; present steps 7–8 as preview.
 9. For notebook 7, run parts A and B live, then present part C as preview.
 10. For notebook 8, run steps 0–5 and 10 live against a non-production gateway, present step 9 as preview, and finish with step 11.
@@ -532,6 +569,7 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
 - [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
 - [foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb): the A2A 1.0 protocol with a local server and client, plus outbound and inbound A2A in Foundry.
+- [foundry-demo-5-a2a.http](foundry-demo-5-a2a.http): REST Client requests for Agent Card discovery, completed and interrupted tasks, resumption, refinement, task-store listing, pagination, and version mismatch.
 - [foundry-demo-6-content-understanding.ipynb](foundry-demo-6-content-understanding.ipynb): Content Understanding from Markdown extraction to custom analyzers, classification, and preview agentic and inline analysis.
 - [foundry-demo-7-voice-live.ipynb](foundry-demo-7-voice-live.ipynb): Voice Live sessions and tools, voice for a Foundry agent, and preview Foundry voice agents.
 - [foundry-demo-8-ai-gateway-governance.ipynb](foundry-demo-8-ai-gateway-governance.ipynb): governing models, MCP tools and agents with API Management as the AI gateway.
