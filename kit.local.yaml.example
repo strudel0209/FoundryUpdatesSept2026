@@ -1,0 +1,8 @@
+# kit.local.yaml — personal settings read by the kit skills. Copy to kit.local.yaml (git-ignored).
+# Never commit the copy. Nothing here is shared with other contributors.
+
+# Private Python package index, used by the dependency check instead of PyPI when reachable.
+# pip_index_url: https://<your-private-feed>/pypi/simple/
+
+# Presenter line override (default: name and job title from the Microsoft 365 profile).
+# presenter: "<Name> · <Role>"

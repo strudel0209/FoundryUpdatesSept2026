@@ -1,0 +1,140 @@
+# kit.yaml — manifest of the Foundry deck and notebook kit.
+# Read on every run by the three kit skills (azure-ai-deep-dive-deck, foundry-whats-new-deck,
+# deck-companion-notebook). The files in the repository win over this manifest: when they
+# disagree, fix this file in the same pull request.
+# Personal values (private package index, tenant, subscription, resource names) never go here:
+# put them in .env (git-ignored) or kit.local.yaml (git-ignored).
+
+kit:
+  name: Microsoft Foundry deck and notebook kit
+  manifest_version: 1
+  skills_version: 1.0.0          # see skills/CHANGELOG.md
+  updated: 2026-10-11
+  python_kernel: "3.12"          # notebooks (devcontainer)
+  hosted_agent_runtime: ["3.13", "3.14"]   # agent/azure.yaml — keep separate from the kernel
+
+paths:
+  skills: skills/
+  decks: decks/
+  deck_changelog: decks/CHANGELOG.md            # owned by foundry-whats-new-deck
+  deep_dive_register: decks/DEEP-DIVE-DECKS.md  # owned by azure-ai-deep-dive-deck
+  notebooks: ./                                 # foundry-demo-<n>-<topic>.ipynb at the root
+  notebooks_changelog: NOTEBOOKS-CHANGELOG.md   # owned by deck-companion-notebook
+  requirements: requirements.txt
+  env_example: .env.example
+  readme: README.md
+
+naming:
+  whats_new_deck: "Microsoft-Foundry-Whats-New-<yyyy>-<mm>[-<dd>].pptx"
+  deep_dive_deck: "<topic-kebab-case>-deep-dive-<yyyy>-<mm>[-<dd>].pptx"
+  notebook: "foundry-demo-<n>-<topic>.ipynb"
+  rule: >-
+    New files use these patterns. Files listed below with legacy_name: true keep their
+    current names until a dedicated renaming pull request updates the README links and
+    notebook references in one change. Never rename or renumber another contributor's file.
+
+next_notebook_number: 9
+
+decks:
+  - file: Microsoft-Foundry-Whats-New-2026-10.pptx
+    kind: whats-new
+    edition: 2026-10
+    slides: 25
+    maintained_by: foundry-whats-new-deck
+    pairs_with: [1]
+  - file: "Microsoft Foundry Guardrails - Tuning Without Over-Blocking.pptx"
+    kind: deep-dive
+    legacy_name: true
+    pairs_with: [1]
+    note: guardrails section of notebook 1; not built with the kit skills
+  - file: "Microsoft Foundry Hosted Agents.pptx"
+    kind: deep-dive
+    legacy_name: true
+    source_build: hosted-agents-deep-dive-2026-10 (second build)
+    slides: 7
+    pairs_with: [2, 3]
+  - file: "Microsoft Foundry Prompt Caching.pptx"
+    kind: deep-dive
+    legacy_name: true
+    pairs_with: [4]
+    note: not built with the kit skills
+  - file: "Microsoft Foundry Agent2Agent-A2A.pptx"
+    kind: deep-dive
+    legacy_name: true
+    pairs_with: [5]
+  - file: "Microsoft Foundry Content-Understanding.pptx"
+    kind: deep-dive
+    legacy_name: true
+    slides: 12
+    pairs_with: [6]
+  - file: "Microsoft Foundry Voice Live-Voice Agents.pptx"
+    kind: deep-dive
+    legacy_name: true
+    source_build: voice-live-voice-agents-deep-dive-2026-10 (second build)
+    slides: 9
+    pairs_with: [7]
+  - file: "Microsoft Foundry AI Gateway.pptx"
+    kind: deep-dive
+    legacy_name: true
+    source_build: ai-gateway-deep-dive-2026-10 (second build)
+    slides: 9
+    pairs_with: [8]
+
+notebooks:
+  - n: 1
+    file: foundry-demo-1-what-is-new.ipynb
+    deck: Microsoft-Foundry-Whats-New-2026-10.pptx
+    env_block: core
+  - n: 2
+    file: foundry-demo-2-hosted-agents.ipynb
+    deck: "Microsoft Foundry Hosted Agents.pptx"
+    env_block: core + HOSTED_AGENT_NAME, LONG_RUNNING_AGENT_NAME, APP_INSIGHTS_RESOURCE_ID (no gateway since 2026-10-11)
+  - n: 3
+    file: foundry-demo-3-hosted-agent-private-nework.ipynb   # (sic) — never rename
+    deck: "Microsoft Foundry Hosted Agents.pptx"
+    env_block: PRIVATE_DEMO_*
+  - n: 4
+    file: foundry-demo-4-promp-caching.ipynb                  # (sic) — never rename
+    deck: "Microsoft Foundry Prompt Caching.pptx"
+    env_block: core
+  - n: 5
+    file: foundry-demo-5-a2a.ipynb
+    companions: [REST Client .http file]
+    deck: "Microsoft Foundry Agent2Agent-A2A.pptx"
+    env_block: core + FOUNDRY_A2A_*, FOUNDRY_AGENT_NAME
+  - n: 6
+    file: foundry-demo-6-content-understanding.ipynb
+    deck: "Microsoft Foundry Content-Understanding.pptx"
+    env_block: CONTENTUNDERSTANDING_*, CU_*
+  - n: 7
+    file: foundry-demo-7-voice-live.ipynb
+    deck: "Microsoft Foundry Voice Live-Voice Agents.pptx"
+    env_block: core + AZURE_VOICELIVE_ENDPOINT, VOICELIVE_*, VOICE_AGENT_MODEL
+  - n: 8
+    file: foundry-demo-8-ai-gateway-governance.ipynb
+    deck: "Microsoft Foundry AI Gateway.pptx"
+    env_block: AI gateway block (APIM_*, INFERENCE_*, MCP_*, A2A_*, APPINSIGHTS_*, LOG_ANALYTICS_*)
+
+# Shared variables: a new notebook reuses one ONLY with the identical meaning;
+# otherwise it adds a prefixed name (feature prefix or NB<n>_).
+env:
+  FOUNDRY_PROJECT_ENDPOINT: {meaning: "Foundry project endpoint https://<resource>.services.ai.azure.com/api/projects/<project>", notebooks: [1, 2, 4, 5, 7, 8]}
+  FOUNDRY_MODEL_NAME:       {meaning: "chat model deployment name (or the Model Router deployment)", notebooks: [1, 4, 5]}
+  FOUNDRY_ROUTER_NAME:      {meaning: "Model Router deployment name", notebooks: [1]}
+  FOUNDRY_EMBEDDING_NAME:   {meaning: "embedding model deployment name", notebooks: [1]}
+  FOUNDRY_PROJECT_NAME:     {meaning: "Foundry project name", notebooks: [1, 7]}
+  FOUNDRY_ACCOUNT_NAME:     {meaning: "Foundry resource (account) name", notebooks: [1], known_issue: "missing from .env.example"}
+  AZURE_SUBSCRIPTION_ID:    {meaning: "subscription of the resources the notebook manages", notebooks: [1, 8]}
+  AZURE_RESOURCE_GROUP:     {meaning: "COLLISION — Foundry resource group (NB1) vs API Management resource group (NB8)", notebooks: [1, 8], known_issue: "rename NB8 use to APIM_RESOURCE_GROUP"}
+  APIM_GATEWAY_URL:         {meaning: "API Management base URL https://<apim>.azure-api.net, without the API suffix (INFERENCE_API_PATH supplies it)", notebooks: [8]}
+  AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING: {meaning: "opt-in for client-side generative AI tracing", notebooks: [1]}
+  OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: {meaning: "record prompts and completions in traces (dev only, default false)", notebooks: [1]}
+
+known_issues:   # kit_check.py over all eight notebooks on 2026-10-11, adjusted for the owner's changes of 2026-10-11 (notebook 2 gateway removed, outputs cleared); re-run after every pull
+  - "NB1 reads FOUNDRY_ACCOUNT_NAME, absent from .env.example"
+  - "NB5 installs packages with %pip in two cells (azure-ai-projects>=2.5.0 vs root >=2.7.0,<3) — move to requirements.txt"
+  - "env collision: AZURE_RESOURCE_GROUP (Foundry resource group in NB1 vs API Management resource group in NB8)"
+  - "azure-ai-projects used with preview surfaces (.beta., *PreviewTool) without a minor cap"
+  - "azure-search-documents floors at 11.6.0 with no upper bound while 12.0.0 is out"
+  - "README has no Notebook 4 section (notebook 4 appears only in the tables and the Repository Guide)"
+  - "decks/CHANGELOG.md lists editions 2026-09 to 2026-09-29 whose files are not in decks/ (only the 2026-10 edition is published); history kept on purpose"

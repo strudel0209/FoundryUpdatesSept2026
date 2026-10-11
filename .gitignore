@@ -6,3 +6,13 @@ __pycache__/
 private-agent/src/
 sample_files/
 caller.wav
+
+# API Management policy backups written by notebook 8 (contain resource names)
+policy-backup-*.xml
+
+# kit: personal settings and local build artefacts
+kit.local.yaml
+kit-gate.md
+render/
+working/
+~$*.pptx

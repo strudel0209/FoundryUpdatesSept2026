@@ -2,7 +2,7 @@
 
 Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows and observability, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
 
-These are hands-on presentation demos, not production application templates. Notebook headings reference slides in the accompanying presentations in [decks/](decks/); the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
+These are hands-on presentation demos, not production application templates. Notebook headings reference slides in the accompanying presentations in [decks/](decks/); the notebooks can also be explored independently. Every deck and notebook is produced with the Cowork skills in [skills/](skills/) — see [Generate Decks and Notebooks with Cowork](#generate-decks-and-notebooks-with-cowork). Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
 ## Choose a Notebook
 
@@ -31,6 +31,87 @@ The [decks/](decks/) folder holds the PowerPoint presentations that accompany th
 | [Microsoft Foundry Content-Understanding.pptx](<decks/Microsoft Foundry Content-Understanding.pptx>) | Notebook 6: Content Understanding |
 | [Microsoft Foundry Voice Live-Voice Agents.pptx](<decks/Microsoft Foundry Voice Live-Voice Agents.pptx>) | Notebook 7: Voice Live and voice agents |
 | [Microsoft Foundry AI Gateway.pptx](<decks/Microsoft Foundry AI Gateway.pptx>) | Notebook 8: AI gateway governance |
+
+## Generate Decks and Notebooks with Cowork
+
+The [skills/](skills/) folder holds three Microsoft 365 Copilot Cowork skills that produce every deck and notebook in this repository the same way. Anyone with Cowork enabled and a clone of this repository can build a new deck, refresh the what's-new deck, or add a companion notebook that matches the existing ones.
+
+| Skill | Produces | Writes to |
+| --- | --- | --- |
+| [azure-ai-deep-dive-deck](skills/azure-ai-deep-dive-deck/SKILL.md) | A new technical deck on one Azure AI topic: verified facts, shape-built diagrams, speaker notes on every slide | `decks/<topic>-deep-dive-<yyyy>-<mm>.pptx`, [decks/DEEP-DIVE-DECKS.md](decks/DEEP-DIVE-DECKS.md) |
+| [foundry-whats-new-deck](skills/foundry-whats-new-deck/SKILL.md) | The next dated edition of the Microsoft Foundry what's-new deck: detect changes, propose patches, apply the approved ones | `decks/Microsoft-Foundry-Whats-New-<yyyy>-<mm>.pptx`, [decks/CHANGELOG.md](decks/CHANGELOG.md) |
+| [deck-companion-notebook](skills/deck-companion-notebook/SKILL.md) | A companion notebook for a deck, one step per slide concept, with dependency and breaking-change checks across all notebooks | `foundry-demo-<n>-<topic>.ipynb`, `requirements.txt`, `.env.example`, this README, [NOTEBOOKS-CHANGELOG.md](NOTEBOOKS-CHANGELOG.md) |
+
+[kit.yaml](kit.yaml) is the manifest the skills read on every run: folder paths, naming patterns, deck and notebook pairs, shared environment variables and their meaning, the next free notebook number, and known issues.
+
+### Prerequisites for contributors
+
+- A Microsoft 365 Copilot licence with Cowork enabled, and OneDrive for Business.
+- Git and a GitHub account with access to this repository.
+- For running notebooks: everything under [Prerequisites](#prerequisites) and [Local Setup](#local-setup). The dev container installs from public PyPI; to use a private package index, set `PIP_INDEX_URL` in your own environment or in `kit.local.yaml` (copy [kit.local.yaml.example](kit.local.yaml.example)).
+- For rendering checks (optional, Cowork does this itself): LibreOffice and Poppler if you run `deck_qa.py --render` locally.
+
+### 1. Install the skills (once, and after each skills release)
+
+1. Clone the repository into a folder that OneDrive syncs, for example `OneDrive/Documents/FoundryUpdatesSept2026`.
+2. In Cowork, attach the folder `skills/azure-ai-deep-dive-deck` and ask: *"Install this skill from the attached folder."* Repeat for `skills/foundry-whats-new-deck` and `skills/deck-companion-notebook`. Install all three: they hand over to each other.
+3. Ask Cowork *"show my skills"* and check that each one reports the version listed in [skills/CHANGELOG.md](skills/CHANGELOG.md).
+
+Installed skills live in your own OneDrive (`Documents/Cowork`). To update them, pull the repository, attach the skill folder again and ask Cowork to *"update this skill from the attached folder"*; then check the version line.
+
+### 2. Attach the kit to the task
+
+At the start of each Cowork task, attach the repository folder (the one that contains `kit.yaml`). Without it the skills still work, but they deliver to the task's output folder only and skip registration in `kit.yaml` and the changelogs.
+
+### 3. Build a new deep-dive deck
+
+> Build a deep-dive deck on Foundry IQ for a mixed technical audience, 45 minutes.
+
+The skill states the scope and defaults, researches Microsoft Learn and public GitHub repositories during the run, shows a slide map, builds the deck with `skills/azure-ai-deep-dive-deck/scripts/deck_lib.py`, runs `deck_qa.py`, inspects every rendered slide, and lists open verify items. Ask it to *"register the deck in the kit"* to add a dated entry to `decks/DEEP-DIVE-DECKS.md` and a `decks:` entry to `kit.yaml`.
+
+### 4. Refresh the what's-new deck
+
+> What changed in Foundry since the last deck?
+
+then, after reviewing the change log:
+
+> Patch the deck with items 1, 3 and 4.
+
+The skill reads the newest edition named in [decks/CHANGELOG.md](decks/CHANGELOG.md), proposes per-slide patches with sources, applies only the approved ones, saves a new dated edition, and appends an edition entry. Never edit the previous edition: it is the rollback. Before you start, pull `main` — if someone else has already produced this month's edition, build on theirs.
+
+### 5. Add or refresh a companion notebook
+
+> Build the companion notebook for decks/foundry-iq-deep-dive-2026-11.pptx.
+
+The skill reads `kit.yaml`, maps slides to steps, sources code from Microsoft Learn and Microsoft GitHub samples, checks every dependency change against all existing notebooks, patches (never rewrites) `requirements.txt`, `.env.example` and this README, runs `skills/deck-companion-notebook/scripts/kit_check.py`, and logs the change in `NOTEBOOKS-CHANGELOG.md`. Other modes:
+
+- *"Update the notebook for the new deck edition"* — slide references and new steps, as a reviewable proposal.
+- *"Check the kit's dependencies"* — audit and proposed safe version bumps, no new notebook. Run it monthly and before each customer session.
+
+### 6. Before presenting
+
+- Clear every item that starts with `Presenter note: verify` in the speaker notes, against the linked page on the day.
+- Check the asterisk-marked features (`*` = preview, no service level agreement) against the documentation.
+- Run each notebook once in VS Code against a **non-production** project; the skills check notebooks statically and never call Azure.
+
+### 7. Contribute back
+
+1. Create a branch: `git checkout -b deck/<topic>-<yyyy>-<mm>` or `notebook/<n>-<topic>`.
+2. Copy the files Cowork delivered into the repository (or let Cowork upload them into the attached folder), and apply the `kit.yaml` diff it proposed.
+3. Clear notebook outputs (`jupyter nbconvert --clear-output --inplace <notebook>`), then run:
+   ```bash
+   python skills/deck-companion-notebook/scripts/kit_check.py . --md-output kit-gate.md
+   python skills/azure-ai-deep-dive-deck/scripts/deck_qa.py decks/<deck>.pptx
+   ```
+4. Open a pull request with `kit-gate.md` in the description. Pre-existing findings stay listed in `kit.yaml` → `known_issues`; new findings block the merge.
+
+### House rules
+
+- Only public Microsoft documentation and public GitHub repositories as sources; no internal, confidential or unannounced material on slides, in notes or in notebooks.
+- Decks: slide titles are short noun phrases; subtitles are one plain line; no "you/your" on slides; no "Learn says" — "as per official documentation" or no attribution; named actors ("development team"), never "agent team"; every row of a slide table answers that table's question.
+- Never commit `.env`, keys, tenant or subscription IDs, real resource names, personal paths, a private package index, or a sensitivity-labelled deck.
+- Never rename or renumber another contributor's notebook or deck; never overwrite a dated edition.
+- `decks/CHANGELOG.md` belongs to `foundry-whats-new-deck`, `decks/DEEP-DIVE-DECKS.md` to `azure-ai-deep-dive-deck`, `NOTEBOOKS-CHANGELOG.md` to `deck-companion-notebook`.
 
 ## Notebook 1: Platform Features
 
@@ -527,7 +608,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 2. Run notebook 1 section by section: model calls, tools, conversations, memory, then observability. Evaluation and guardrail tests can be explored separately after agent setup.
 3. Deploy the two hosted services following the agent guide before opening notebook 2's hosted-agent sections.
 4. In notebook 2, connect and invoke the hosted assistant. Run the briefing start cell, then promptly run steering while the first turn is active, followed by the polling cell. Skip steering to finish the original sourcing brief.
-5. Inspect the completed deliverable and telemetry. Run the optional gateway section only after configuring API Management.
+5. Inspect the completed deliverable and telemetry.
 6. For notebook 3, provision the private infrastructure locally, then switch to the devbox VM for the connectivity gate, agent deployment, and Teams publishing.
 7. For notebook 5, demo Part 1 live (steps 5 and 6 carry the argument). Optionally use the [HTTP walkthrough](#http-walkthrough-in-vs-code-rest-client) to show requests and task records before shutting down the local server, then walk through Part 2's payloads and identity table rather than publishing live.
 8. For notebook 6, check the resource defaults in step 0 first, then run steps 1–6 on the GA API; present steps 7–8 as preview.
@@ -563,7 +644,7 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 ## Repository Guide
 
 - [foundry-demo-1-what-is-new.ipynb](foundry-demo-1-what-is-new.ipynb): platform features and managed prompt-agent lifecycle.
-- [foundry-demo-2-hosted-agents.ipynb](foundry-demo-2-hosted-agents.ipynb): hosted services, procurement brief, telemetry, and gateway.
+- [foundry-demo-2-hosted-agents.ipynb](foundry-demo-2-hosted-agents.ipynb): hosted services, procurement brief, and telemetry.
 - [foundry-demo-3-hosted-agent-private-nework.ipynb](foundry-demo-3-hosted-agent-private-nework.ipynb): private Foundry infrastructure and Teams publishing.
 - [foundry-demo-4-promp-caching.ipynb](foundry-demo-4-promp-caching.ipynb): prompt caching measured through the project's Responses API.
 - [foundry-demo-5-a2a.ipynb](foundry-demo-5-a2a.ipynb): the A2A 1.0 protocol with a local server and client, plus outbound and inbound A2A in Foundry.
@@ -572,6 +653,11 @@ Notebook 3's private environment (VNet, private endpoint, model, hosted compute,
 - [foundry-demo-7-voice-live.ipynb](foundry-demo-7-voice-live.ipynb): Voice Live sessions and tools, voice for a Foundry agent, and preview Foundry voice agents.
 - [foundry-demo-8-ai-gateway-governance.ipynb](foundry-demo-8-ai-gateway-governance.ipynb): governing models, MCP tools and agents with API Management as the AI gateway.
 - [decks/](decks/): PowerPoint decks that accompany the notebooks (see [Slide Decks](#slide-decks)).
+- [decks/CHANGELOG.md](decks/CHANGELOG.md): dated editions of the what's-new deck (owned by `foundry-whats-new-deck`).
+- [decks/DEEP-DIVE-DECKS.md](decks/DEEP-DIVE-DECKS.md): register of deep-dive decks (owned by `azure-ai-deep-dive-deck`).
+- [NOTEBOOKS-CHANGELOG.md](NOTEBOOKS-CHANGELOG.md): notebook additions, updates and dependency audits (owned by `deck-companion-notebook`).
+- [kit.yaml](kit.yaml): kit manifest read by the skills; [kit.local.yaml.example](kit.local.yaml.example): template for personal, git-ignored settings.
+- [skills/](skills/): the three Cowork skills, their scripts, and [skills/CHANGELOG.md](skills/CHANGELOG.md).
 - [private-agent/azure.yaml](private-agent/azure.yaml): isolated azd manifest deploying `demo-hosted-agent` to the private project.
 - [docs/private-teams-architecture.svg](docs/private-teams-architecture.svg): notebook 3 architecture diagram (official Azure and Microsoft 365 icons).
 - [requirements.txt](requirements.txt): shared local dependencies.
