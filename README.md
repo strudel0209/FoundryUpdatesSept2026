@@ -1,6 +1,6 @@
 # Microsoft Foundry Demo Notebooks
 
-Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows, observability and gateway controls, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
+Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows and observability, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
 
 These are hands-on presentation demos, not production application templates. Notebook headings reference slides in the accompanying presentations in [decks/](decks/); the notebooks can also be explored independently. Preview features and cells marked `# verify` should be checked against the linked documentation and your deployed SDK versions before presenting.
 
@@ -9,7 +9,7 @@ These are hands-on presentation demos, not production application templates. Not
 | Notebook | Focus | What you demonstrate |
 | --- | --- | --- |
 | [Notebook 1: Foundry platform features](foundry-demo-1-what-is-new.ipynb) | Call models and assemble a managed prompt agent | Model Router, priority processing, toolboxes, conversations, memory, tracing, evaluation, and guardrails |
-| [Notebook 2: Hosted agents and operations](foundry-demo-2-hosted-agents.ipynb) | Interact with services deployed beforehand | Custom agent code, a procurement briefing workflow, background execution, steering, recovery, telemetry, and an API Management gateway |
+| [Notebook 2: Hosted agents and operations](foundry-demo-2-hosted-agents.ipynb) | Interact with services deployed beforehand | Custom agent code, a procurement briefing workflow, background execution, steering, recovery, and telemetry |
 | [Notebook 3: Private hosted agent to Teams](foundry-demo-3-hosted-agent-private-nework.ipynb) | Provision a private Foundry project and publish to Teams | VNet-injected Foundry, private endpoint access, azd source deployment, Azure Bot Service, the Activity Protocol route, and Microsoft 365 publishing |
 | [Notebook 4: Prompt caching](foundry-demo-4-promp-caching.ipynb) | Observe cache reads and writes on the public project | Cold/warm calls, prefix sensitivity, prompt layout, append-only history, explicit breakpoints with `prompt_cache_key`, and reuse ratios |
 | [Notebook 5: Agent2Agent (A2A)](foundry-demo-5-a2a.ipynb) | Run an A2A 1.0 server and client locally, then configure A2A in Foundry | Agent Card discovery, tasks and their states, input-required and resume, artifacts, wire format, the outbound `a2a` tool, and the inbound A2A endpoint |
@@ -30,7 +30,7 @@ The [decks/](decks/) folder holds the PowerPoint presentations that accompany th
 | [Microsoft Foundry Agent2Agent-A2A.pptx](<decks/Microsoft Foundry Agent2Agent-A2A.pptx>) | Notebook 5: Agent2Agent (A2A) |
 | [Microsoft Foundry Content-Understanding.pptx](<decks/Microsoft Foundry Content-Understanding.pptx>) | Notebook 6: Content Understanding |
 | [Microsoft Foundry Voice Live-Voice Agents.pptx](<decks/Microsoft Foundry Voice Live-Voice Agents.pptx>) | Notebook 7: Voice Live and voice agents |
-| [Microsoft Foundry AI Gateway.pptx](<decks/Microsoft Foundry AI Gateway.pptx>) | Notebook 8 (and notebook 2's gateway section): AI gateway governance |
+| [Microsoft Foundry AI Gateway.pptx](<decks/Microsoft Foundry AI Gateway.pptx>) | Notebook 8: AI gateway governance |
 
 ## Notebook 1: Platform Features
 
@@ -88,13 +88,12 @@ The initial request compares single-source and dual-source battery-module sourci
 
 The deployment manifest includes a **10-second presentation-only delay per stage** to leave time for steering. Set `DEMO_STAGE_DELAY_SECONDS` to `0` for normal use. Model latency is additional and varies.
 
-### Telemetry and AI Gateway
+### Telemetry
 
 - **Telemetry:** query Application Insights `dependencies` and `requests` for recent agent activity, including model calls and storage operations. The cell reports timestamps, role names, operation names, duration, success, and correlation IDs.
 - **Optional local telemetry:** the notebook describes an Aspire Dashboard view for locally hosted agents.
-- **AI gateway:** call a model through an existing Azure API Management gateway, exercise a configured token-limit policy, and inspect HTTP `429` / `Retry-After` behavior and token metrics.
 
-The gateway is not provisioned by these notebooks. Its API path, backend authentication, subscription, policies, and telemetry destination must be configured separately. Verify the imported API's path and the token-metric query against your gateway; it may use a different Application Insights resource from the agents.
+Notebook 2 does not require an API Management gateway. For gateway governance of models, tools and agents, continue with [notebook 8](foundry-demo-8-ai-gateway-governance.ipynb).
 
 ## Notebook 3: Private Hosted Agent to Teams
 
@@ -464,7 +463,7 @@ sequenceDiagram
 - Azure CLI authentication usable by `DefaultAzureCredential`. Deploying services and creating notebook toolbox connections also require Azure Developer CLI and the relevant Foundry extensions, described in the agent guide.
 - Permissions to invoke models and manage the demo resources. The role-assignment cell additionally requires permission to assign roles, and querying telemetry requires log-read access.
 - Application Insights connected to the project for tracing, and configured knowledge connections for the notebook 1 toolbox examples.
-- An existing API Management gateway only if you run notebook 2's gateway section or notebook 8.
+- An existing API Management gateway only if you run notebook 8.
 
 ## Local Setup
 
@@ -481,14 +480,13 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | Variable | Used for |
 | --- | --- |
 | `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4, 5 (Part 2) and 7: `https://<account>.services.ai.azure.com/api/projects/<project>` |
-| `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1, 2 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
+| `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
 | `HOSTED_AGENT_NAME` | Notebook 2 hosted assistant; defaults to `demo-hosted-agent` |
 | `LONG_RUNNING_AGENT_NAME` | Notebook 2 briefing agent; defaults to `demo-long-running-agent` |
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
-| `APIM_GATEWAY_URL` | Notebook 2's optional gateway section expects the URL **including** the imported API suffix; notebook 8 expects the **base** URL (`https://<apim>.azure-api.net`). Set it for the notebook you run. |
-| `APIM_SUBSCRIPTION_KEY` | Optional gateway section: subscription key authorized for that API |
+| `APIM_GATEWAY_URL` | Notebook 8: APIM **base** URL (`https://<apim>.azure-api.net`), without the imported API suffix; `INFERENCE_API_PATH` supplies the suffix |
 | `FOUNDRY_A2A_CONNECTION` | Notebook 5 Part 2: `RemoteA2A` connection the notebook creates; defaults to `claims-triage-a2a` |
 | `FOUNDRY_AGENT_NAME` | Notebook 5 Part 2: calling agent that carries the A2A tool; defaults to `concierge-agent` |
 | `FOUNDRY_A2A_TARGET_AGENT` | Notebook 5 Part 2: agent exposed over inbound A2A and used as the outbound target; defaults to `claims-triage-foundry` |
