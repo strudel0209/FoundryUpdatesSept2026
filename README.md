@@ -1,4 +1,4 @@
-# Microsoft Foundry Demo Notebooks
+# Microsoft Foundry What's New and Deep-Dive Kit
 
 Eight notebooks explore Microsoft Foundry: model calls and managed prompt agents, custom hosted agents with long-running workflows and observability, publishing a hosted agent from a **private-network** Foundry project to Microsoft Teams without APIM, prompt caching, the Agent2Agent (A2A) protocol, Azure Content Understanding, Voice Live with voice agents, and governing models, tools and agents with an AI gateway.
 
@@ -53,7 +53,7 @@ The [skills/](skills/) folder holds three Microsoft 365 Copilot Cowork skills th
 
 ### 1. Install the skills (once, and after each skills release)
 
-1. Clone the repository into a folder that OneDrive syncs, for example `OneDrive/Documents/FoundryUpdatesSept2026`.
+1. Clone the repository into a folder that OneDrive syncs, for example `OneDrive/Documents/microsoft-foundry-whats-new-deep-dive-kit`.
 2. In Cowork, attach the folder `skills/azure-ai-deep-dive-deck` and ask: *"Install this skill from the attached folder."* Repeat for `skills/foundry-whats-new-deck` and `skills/deck-companion-notebook`. Install all three: they hand over to each other.
 3. Ask Cowork *"show my skills"* and check that each one reports the version listed in [skills/CHANGELOG.md](skills/CHANGELOG.md).
 

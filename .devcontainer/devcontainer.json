@@ -1,5 +1,5 @@
 {
-  "name": "foundry-whatisnew",
+  "name": "Microsoft Foundry What's New and Deep-Dive Kit",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
 
   "features": {

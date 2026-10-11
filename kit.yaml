@@ -6,7 +6,7 @@
 # put them in .env (git-ignored) or kit.local.yaml (git-ignored).
 
 kit:
-  name: Microsoft Foundry deck and notebook kit
+  name: Microsoft Foundry What's New and Deep-Dive Kit
   manifest_version: 1
   skills_version: 1.0.0          # see skills/CHANGELOG.md
   updated: 2026-10-11
