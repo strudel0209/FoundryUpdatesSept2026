@@ -7,6 +7,18 @@ rollback. `Conformance` states whether the deck meets the skill version named.
 
 ---
 
+## guardrails-tuning-deep-dive-2026-10 · edition 2026-10
+
+**Kit file:** `Microsoft Foundry Guardrails - Tuning Without Over-Blocking.pptx` (legacy name) · **Sources verified:** 2026-10-11 · **Slides:** 14
+**Pairs with:** notebook 1 (guardrails section)
+**Replaces:** the earlier build of the same kit file (10 slides, "-V4"), not made with the kit skills; same message and test data, restructured into the kit design, with speaker notes on every slide; the previous version stays in git history
+**Sources:** learn.microsoft.com/azure/foundry/guardrails/guardrails-overview · guardrails/how-to-create-guardrails · openai/concepts/content-filter-severity-levels · openai/how-to/responses · concepts/evaluation-evaluators/risk-safety-evaluators · observability/how-to/cloud-evaluation · observability/how-to/evaluation-dataset-synthetic · learn.microsoft.com/azure/foundry-classic/openai/how-to/content-filters · github.com/strudel0209/foundry-content-safety-eval (test data: 266 question-and-model pairs, gpt-5.4-mini and gpt-5.6-sol, HighestBlocking / MediumBlocking / LowestBlocking)
+**Conformance:** skill 1.0.1 — `deck_qa.py` 0 FAIL, 2 WARN (status headings on the status slide, allowed); every slide inspected as a rendered image
+**Open verify items:**
+- Portal blocking labels (Lowest / Medium / Highest blocking) against the API thresholds: read from the portal during the test; the documentation describes the direction inconsistently.
+- Preview status of synthetic evaluation dataset generation: the page lost its preview label on 2026-10-08, while the evaluation data source type still carries a preview name.
+- Intervention points per risk for agents (indirect attacks on tool responses; protected material on output only), which are still preview.
+
 ## hosted-agents-deep-dive-2026-10 · edition 2026-10
 
 **Kit file:** `Microsoft Foundry Hosted Agents.pptx` (legacy name) · **Sources verified:** 2026-10-09 · **Slides:** 7

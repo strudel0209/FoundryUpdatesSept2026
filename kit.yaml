@@ -45,8 +45,10 @@ decks:
   - file: "Microsoft Foundry Guardrails - Tuning Without Over-Blocking.pptx"
     kind: deep-dive
     legacy_name: true
+    source_build: guardrails-tuning-deep-dive-2026-10 (refactored with azure-ai-deep-dive-deck; replaces the V4 build)
+    slides: 14
     pairs_with: [1]
-    note: guardrails section of notebook 1; not built with the kit skills
+    note: guardrails section of notebook 1; test data from github.com/strudel0209/foundry-content-safety-eval
   - file: "Microsoft Foundry Hosted Agents.pptx"
     kind: deep-dive
     legacy_name: true
