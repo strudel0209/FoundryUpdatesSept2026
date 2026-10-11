@@ -565,9 +565,11 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `AZURE_RESOURCE_GROUP` | Notebook 1: resource group containing the Foundry account and project; not the API Management resource group |
 | `FOUNDRY_ACCOUNT_NAME` | Notebook 1, optional: override the Foundry account name; blank or unset derives it from `FOUNDRY_PROJECT_ENDPOINT` |
 | `FOUNDRY_PROJECT_NAME` | Notebooks 1 and 7: project name matching `FOUNDRY_PROJECT_ENDPOINT`; notebook 1 derives it from the endpoint when blank or unset, while notebook 7 requires it for Voice Live with an agent |
-| `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
+| `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1, 4 and 5 (Part 2); notebook 5 defaults to `gpt-5-mini` when unset. Notebook 4's demo 5 needs GPT-5.6 or later on Standard |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
+| `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING` | Notebook 1: required opt-in for client-side generative AI tracing; the example and dev container use `true`, and the tracing cell explicitly sets it before instrumentation |
+| `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` | Notebook 1: whether prompts and completions are captured in traces; the example, dev container and tracing cell use `false`. Keep capture disabled unless explicitly needed and permitted for development |
 | `HOSTED_AGENT_NAME` | Notebook 2 hosted assistant; defaults to `demo-hosted-agent` |
 | `LONG_RUNNING_AGENT_NAME` | Notebook 2 briefing agent; defaults to `demo-long-running-agent` |
 | `APP_INSIGHTS_RESOURCE_ID` | Notebook 2 telemetry: full Application Insights component resource ID |
