@@ -6,6 +6,15 @@ existing decks, notebooks or `kit.yaml`; MINOR = new rule, mode or script; PATCH
 A change to the shared visual system or to the Slide wording rules updates **both** deck skills
 (and `scripts/deck_lib.py`) in the same release.
 
+## 1.0.1 · 2026-10-11 — kit consistency corrections
+
+**All three skills**
+- Use the name **Microsoft Foundry What's New and Deep-Dive Kit** consistently.
+
+**deck-companion-notebook**
+- Correct hosted-agent runtime references to Python 3.13, separate from the Python 3.12 notebook kernel.
+- Mark the resource-group collision resolved: notebook 8 uses `APIM_RESOURCE_GROUP`, while notebooks 1 and 8 share `AZURE_SUBSCRIPTION_ID` in one subscription.
+
 ## 1.0.0 · 2026-10-11 — first shared release
 
 **All three skills**

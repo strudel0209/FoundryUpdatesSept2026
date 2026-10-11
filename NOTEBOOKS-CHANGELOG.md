@@ -8,6 +8,16 @@ appended, never rewritten. Deck editions are logged in `decks/CHANGELOG.md`, not
 
 ---
 
+## 2026-10-11 · notebooks 1 and 8 — environment and documentation consistency
+
+**Paired decks:** Microsoft Foundry what's-new edition 2026-10 and Microsoft Foundry AI Gateway
+**Dependency changes:** none; corrected the shared requirements header to notebooks 1–8
+**Env changes:** notebook 8 now reads `APIM_RESOURCE_GROUP`; `AZURE_RESOURCE_GROUP` is Foundry-only. Both retain the shared `AZURE_SUBSCRIPTION_ID`, with all kit resources in one subscription. Consolidated `FOUNDRY_PROJECT_NAME` into one blank setting (notebook 1 derives its default from the endpoint; notebook 7 requires a value for Voice Live with an agent). Documented the optional, endpoint-derived `FOUNDRY_ACCOUNT_NAME` override.
+**Resolved baseline findings:** the `FOUNDRY_ACCOUNT_NAME` example-file omission and the Foundry/APIM resource-group collision below are no longer open. The baseline entry is retained as history.
+**Documentation:** corrected notebook 1's environment-derived ARM IDs and connection-name prerequisites; replaced notebook 2's obsolete gateway URL instructions with notebook 8's `INFERENCE_API_STYLE` contract; aligned kit branding and hosted Python 3.13 runtime references.
+**Migration:** move the existing APIM resource-group value to `APIM_RESOURCE_GROUP`, set `AZURE_RESOURCE_GROUP` to the Foundry group, and keep one shared subscription and one project-name setting.
+**Regression:** 8/8 notebooks pass the static syntax checks; focused runtime checks pass for separate resource groups in one subscription, blank/unset/explicit account and project names, missing APIM settings, and both gateway URL styles. YAML manifests and skill frontmatter parse and agree. The full static gate remains FAIL with the same two pre-existing per-package install findings in notebook 5 (cells 2 and 23), 29 WARN and 27 INFO; no new findings. Dependency resolver and live Azure calls were not run.
+
 ## 2026-10-11 · baseline — eight notebooks registered
 
 **Paired decks:** see `kit.yaml` → `notebooks` (notebook 1 ↔ what's-new edition 2026-10; notebooks 2–8 ↔ deep-dive decks)

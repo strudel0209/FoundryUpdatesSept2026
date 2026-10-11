@@ -1,4 +1,4 @@
-# Microsoft Foundry demo — notebooks 1–4 — Python 3.12 recommended
+# Microsoft Foundry demo — notebooks 1–8 — Python 3.12 recommended
 # Pinned to the minimum versions referenced in the Foundry documentation (September 2026).
 
 # --- Core: project client, OpenAI-compatible surface, identity (NB1 cells 0–4, NB2 all) ---

@@ -1,5 +1,23 @@
 <policies>
 	<inbound>
+		<llm-emit-token-metric namespace="ai-gateway">
+			<dimension name="Subscription ID" />
+			<dimension name="Product ID" />
+			<dimension name="API ID" />
+			<dimension name="Client IP" value="@(context.Request.IpAddress)" />
+		</llm-emit-token-metric>
+		<llm-content-safety backend-id="content-safety-backend" shield-prompt="true">
+			<categories output-type="EightSeverityLevels">
+				<category name="Hate" threshold="4" />
+				<category name="Violence" threshold="4" />
+				<category name="SelfHarm" threshold="4" />
+				<category name="Sexual" threshold="4" />
+			</categories>
+		</llm-content-safety>
+		<llm-semantic-cache-lookup score-threshold="0.15" embeddings-backend-id="embeddings-backend" embeddings-backend-auth="system-assigned" ignore-system-messages="true">
+			<vary-by>@(context.Subscription.Id)</vary-by>
+		</llm-semantic-cache-lookup>
+		<rate-limit-by-key calls="60" renewal-period="60" counter-key="@(context.Subscription.Id)" />
 		<base />
 		<set-backend-service id="apim-generated-policy" backend-id="cog-tb7tpjtuee4ji-ai-endpoint" />
 	</inbound>
@@ -7,6 +25,7 @@
 		<base />
 	</backend>
 	<outbound>
+		<llm-semantic-cache-store duration="300" />
 		<base />
 	</outbound>
 	<on-error>

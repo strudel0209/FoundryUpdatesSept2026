@@ -1,4 +1,4 @@
-# kit.yaml — manifest of the Foundry deck and notebook kit.
+# kit.yaml — manifest of the Microsoft Foundry What's New and Deep-Dive Kit.
 # Read on every run by the three kit skills (azure-ai-deep-dive-deck, foundry-whats-new-deck,
 # deck-companion-notebook). The files in the repository win over this manifest: when they
 # disagree, fix this file in the same pull request.
@@ -8,10 +8,10 @@
 kit:
   name: Microsoft Foundry What's New and Deep-Dive Kit
   manifest_version: 1
-  skills_version: 1.0.0          # see skills/CHANGELOG.md
+  skills_version: 1.0.1          # see skills/CHANGELOG.md
   updated: 2026-10-11
   python_kernel: "3.12"          # notebooks (devcontainer)
-  hosted_agent_runtime: ["3.13", "3.14"]   # agent/azure.yaml — keep separate from the kernel
+  hosted_agent_runtime: ["3.13"]   # agent/azure.yaml and private-agent/azure.yaml — separate from the kernel
 
 paths:
   skills: skills/
@@ -113,7 +113,7 @@ notebooks:
   - n: 8
     file: foundry-demo-8-ai-gateway-governance.ipynb
     deck: "Microsoft Foundry AI Gateway.pptx"
-    env_block: AI gateway block (APIM_*, INFERENCE_*, MCP_*, A2A_*, APPINSIGHTS_*, LOG_ANALYTICS_*)
+    env_block: AZURE_SUBSCRIPTION_ID + AI gateway block (APIM_*, INFERENCE_*, MCP_*, A2A_*, APPINSIGHTS_*, LOG_ANALYTICS_*)
 
 # Shared variables: a new notebook reuses one ONLY with the identical meaning;
 # otherwise it adds a prefixed name (feature prefix or NB<n>_).
@@ -122,18 +122,17 @@ env:
   FOUNDRY_MODEL_NAME:       {meaning: "chat model deployment name (or the Model Router deployment)", notebooks: [1, 4, 5]}
   FOUNDRY_ROUTER_NAME:      {meaning: "Model Router deployment name", notebooks: [1]}
   FOUNDRY_EMBEDDING_NAME:   {meaning: "embedding model deployment name", notebooks: [1]}
-  FOUNDRY_PROJECT_NAME:     {meaning: "Foundry project name", notebooks: [1, 7]}
-  FOUNDRY_ACCOUNT_NAME:     {meaning: "Foundry resource (account) name", notebooks: [1], known_issue: "missing from .env.example"}
-  AZURE_SUBSCRIPTION_ID:    {meaning: "subscription of the resources the notebook manages", notebooks: [1, 8]}
-  AZURE_RESOURCE_GROUP:     {meaning: "COLLISION — Foundry resource group (NB1) vs API Management resource group (NB8)", notebooks: [1, 8], known_issue: "rename NB8 use to APIM_RESOURCE_GROUP"}
+  FOUNDRY_PROJECT_NAME:     {meaning: "Foundry project name matching FOUNDRY_PROJECT_ENDPOINT; NB1 derives it when blank or unset, NB7 requires it for Voice Live with an agent", notebooks: [1, 7]}
+  FOUNDRY_ACCOUNT_NAME:     {meaning: "optional NB1 override of the Foundry account name; blank or unset derives it from FOUNDRY_PROJECT_ENDPOINT", notebooks: [1]}
+  AZURE_SUBSCRIPTION_ID:    {meaning: "shared subscription containing the kit's Foundry and API Management resources; PRIVATE_DEMO_SUBSCRIPTION_ID must use the same subscription", notebooks: [1, 8]}
+  AZURE_RESOURCE_GROUP:     {meaning: "Foundry resource group containing the account and project", notebooks: [1]}
+  APIM_RESOURCE_GROUP:      {meaning: "API Management resource group in the shared AZURE_SUBSCRIPTION_ID", notebooks: [8]}
   APIM_GATEWAY_URL:         {meaning: "API Management base URL https://<apim>.azure-api.net, without the API suffix (INFERENCE_API_PATH supplies it)", notebooks: [8]}
   AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING: {meaning: "opt-in for client-side generative AI tracing", notebooks: [1]}
   OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: {meaning: "record prompts and completions in traces (dev only, default false)", notebooks: [1]}
 
 known_issues:   # kit_check.py over all eight notebooks on 2026-10-11, adjusted for the owner's changes of 2026-10-11 (notebook 2 gateway removed, outputs cleared); re-run after every pull
-  - "NB1 reads FOUNDRY_ACCOUNT_NAME, absent from .env.example"
   - "NB5 installs packages with %pip in two cells (azure-ai-projects>=2.5.0 vs root >=2.7.0,<3) — move to requirements.txt"
-  - "env collision: AZURE_RESOURCE_GROUP (Foundry resource group in NB1 vs API Management resource group in NB8)"
   - "azure-ai-projects used with preview surfaces (.beta., *PreviewTool) without a minor cap"
   - "azure-search-documents floors at 11.6.0 with no upper bound while 12.0.0 is out"
   - "README has no Notebook 4 section (notebook 4 appears only in the tables and the Repository Guide)"

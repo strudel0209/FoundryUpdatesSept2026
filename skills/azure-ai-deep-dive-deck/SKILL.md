@@ -19,7 +19,7 @@ metadata:
 
 # Azure AI Deep-Dive Deck
 
-> Version 1.0.0 · 2026-10-11 · part of the Foundry deck and notebook kit — history in
+> Version 1.0.1 · 2026-10-11 · part of the Microsoft Foundry What's New and Deep-Dive Kit — history in
 > `skills/CHANGELOG.md` of the kit repository.
 
 ## Overview
@@ -85,7 +85,7 @@ User: "Build me a deep-dive deck on Model Router — I'm presenting to a custome
 
 ## Kit and repository setup (shared by all three kit skills)
 
-This skill ships in the **Foundry deck and notebook kit** — a Git repository whose root holds
+This skill ships in the **Microsoft Foundry What's New and Deep-Dive Kit** — a Git repository whose root holds
 `kit.yaml`. Contributors clone the repository into a OneDrive-synced folder and attach that
 folder to the Cowork task. The skill works with or without the kit:
 

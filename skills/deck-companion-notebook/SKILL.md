@@ -18,7 +18,7 @@ metadata:
 
 # Deck Companion Notebook
 
-> Version 1.0.0 · 2026-10-11 · part of the Foundry deck and notebook kit — history in
+> Version 1.0.1 · 2026-10-11 · part of the Microsoft Foundry What's New and Deep-Dive Kit — history in
 > `skills/CHANGELOG.md` of the kit repository.
 
 ## Overview
@@ -104,7 +104,7 @@ attached folders qualify, ask which one. Never assume a fixed OneDrive path.
 **Read `kit.yaml` first, on every run.** It lists the notebooks (number, file, paired deck and
 slides, environment variables), the decks, the shared environment variables with their meaning,
 the next free notebook number, the paths of the changelogs and the known issues. The tables below
-describe the kit **at skill version 1.0.0** and are orientation only — when they disagree with
+describe the kit **at skill version 1.0.1** and are orientation only — when they disagree with
 `kit.yaml` or the files, the files win; propose a `kit.yaml` fix as a diff.
 
 **Kit-specific notes** (personal environment details) live in an optional git-ignored
@@ -115,7 +115,7 @@ never copy its content into a shared file.
 |------|-----------|-------------|
 | `.devcontainer/devcontainer.json` | image `mcr.microsoft.com/devcontainers/python:3.12`; Azure CLI + azd features; `postCreateCommand` = `pip install -r requirements.txt` + azd extensions `azure.ai.agents`, `microsoft.foundry`; `PIP_INDEX_URL` **unset** in the public kit (PyPI) — a private index belongs in the
 contributor's `kit.local.yaml` or local environment, never in the shared file; remoteEnv `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true`, `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=false`; forwarded ports 8088 (hosted agent), 18888 (Aspire dashboard), 4317 (OpenTelemetry Protocol, OTLP) | this skill — patch only when a new CLI tool, extension or port is required |
-| `agent/` | Azure Developer CLI (azd) project with two hosted agents; `agent/src/<agent>/requirements.txt` pulled into the root file with `-r`; `agent/azure.yaml` sets the hosted runtime (Python 3.13/3.14) | user — read-only for this skill |
+| `agent/` | Azure Developer CLI (azd) project with two hosted agents; `agent/src/<agent>/requirements.txt` pulled into the root file with `-r`; `agent/azure.yaml` sets the hosted runtime (Python 3.13) | user — read-only for this skill |
 | `private-agent/`, `docs/` | supporting material | user — read-only |
 | `README.md` | single kit README (sections below) | this skill — patch only |
 | `decks/CHANGELOG.md` (`paths.deck_changelog`) | **deck changelog owned by `foundry-whats-new-deck`**, parsed by that skill | **never write to it** |
@@ -144,7 +144,7 @@ demonstrate`) · Slide Decks (table `Deck | Pairs with`) · one section per note
 Prerequisites · Local Setup (env table `Variable | Used for`) · Recommended Demo Flow · Costs,
 Validation, and Cleanup · Repository Guide.
 
-**Python versions:** notebook kernel **3.12** (devcontainer); hosted-agent runtime **3.13/3.14**
+**Python versions:** notebook kernel **3.12** (devcontainer); hosted-agent runtime **3.13**
 (`agent/azure.yaml`); azure-ai-projects 2.x needs **≥3.10**. Keep kernel and hosted-runtime
 requirements separate — never raise the kernel to satisfy an agent dependency or vice versa.
 
@@ -274,8 +274,10 @@ Same rules as the deck skills' Slide wording rules 4–6, applied to markdown ce
 
 ## Section 4: Defects already in the kit (worked examples — prevent, never repeat)
 
-1. **Semantic env-var collision.** `AZURE_RESOURCE_GROUP` is the Foundry resource group in
-   notebook 1 but the API Management resource group in notebook 8 (still open). `APIM_GATEWAY_URL`
+1. **Semantic env-var collision.** `AZURE_RESOURCE_GROUP` meant the Foundry resource group in
+   notebook 1 but the API Management resource group in notebook 8. Resolved on 2026-10-11:
+   notebook 8 now uses `APIM_RESOURCE_GROUP`; both share `AZURE_SUBSCRIPTION_ID` because all kit
+   resources use one subscription. `APIM_GATEWAY_URL`
    meant "URL including the API suffix" in notebook 2 but "base URL" in notebook 8 until notebook
    2's gateway section was removed (2026-10-11) — the README had to tell readers to set it per
    notebook.
@@ -300,7 +302,7 @@ Same rules as the deck skills' Slide wording rules 4–6, applied to markdown ce
    (beta); `azure-core-tracing-opentelemetry` (beta); `azure-monitor-query` 2.0 (metrics moved to
    `azure-monitor-querymetrics`); `azure-search-documents` is now 12.0.0 while the kit floors at
    11.6.0 — a major bump arrives silently unless capped.
-5. **Python versions:** kernel 3.12 vs hosted runtime 3.13/3.14 — see Section 1.
+5. **Python versions:** kernel 3.12 vs hosted runtime 3.13 — see Section 1.
 
 ---
 
@@ -403,8 +405,8 @@ For every package the new notebook needs:
    Append a `# Notebook <n> only: <topic>.` block; secrets flagged and left empty.
    **Never rename or delete an existing variable.**
 3. Output the **ENV CHANGE LOG**.
-4. Flag pre-existing collisions the checker reports (`env.collisions`, e.g. `APIM_GATEWAY_URL`,
-   `AZURE_RESOURCE_GROUP`) and propose a fix as a **separate, approval-gated item** — typically a
+4. Flag pre-existing collisions the checker reports (`env.collisions`; see the resolved
+   `APIM_GATEWAY_URL` and `AZURE_RESOURCE_GROUP` examples in Section 4) and propose a fix as a **separate, approval-gated item** — typically a
    new prefixed name for one notebook, with the cell diff and the README change.
 
 ### Step 6 — BUILD THE NOTEBOOK

@@ -129,7 +129,7 @@ The skill reads `kit.yaml`, maps slides to steps, sources code from Microsoft Le
 | Evaluation | Upload a small JSONL dataset, evaluate the agent using task-adherence, coherence, and safety criteria, poll the run, and obtain a report URL. |
 | Guardrails | Submit a normal request and a prompt-injection test, then inspect the response or content-filter error. Actual behavior depends on assigned policies. |
 
-**Before running:** replace the project resource ID and the Microsoft Learn / Foundry IQ connection IDs embedded in the toolbox and role-assignment cells. Those values are specific to the original demo environment; changing only the project endpoint is not enough. The knowledge connections and their underlying content must already be configured.
+**Before running:** configure the Foundry project endpoint, shared subscription, and Foundry resource group in your root `.env`, using [.env.example](.env.example) as the template. Notebook 1 builds the account and project ARM IDs from these settings; account and project names default to the endpoint unless overridden. Create the existing-project connections `MicrosoftLearn` and `kb-mcp-connection` with their underlying knowledge sources, or edit those names in the toolbox cell. The notebook creates `demo-toolbox-agent-auth` in its connection cell; if you change that name, also change the agent's reference to it.
 
 The notebook creates cloud artifacts and includes a role-assignment command. Review these cells before executing them. Resource-creation cells are not necessarily idempotent, and rerunning them can create new versions or conflict with existing names.
 
@@ -538,7 +538,7 @@ sequenceDiagram
 
 ## Prerequisites
 
-- An Azure subscription and an existing Foundry project with appropriate feature and regional availability.
+- One Azure subscription for all kit resources and an existing Foundry project with appropriate feature and regional availability. Foundry and API Management may use different resource groups.
 - A chat-model deployment; a Model Router deployment for the routing demo; an embedding deployment for memory.
 - A Python notebook environment. Python 3.12 has been used for notebook execution; hosted services are configured with Python 3.13 in [agent/azure.yaml](agent/azure.yaml).
 - Azure CLI authentication usable by `DefaultAzureCredential`. Deploying services and creating notebook toolbox connections also require Azure Developer CLI and the relevant Foundry extensions, described in the agent guide.
@@ -560,7 +560,11 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 
 | Variable | Used for |
 | --- | --- |
-| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4, 5 (Part 2) and 7: `https://<account>.services.ai.azure.com/api/projects/<project>` |
+| `FOUNDRY_PROJECT_ENDPOINT` | Notebooks 1, 2, 4, 5 (Part 2), 7 and 8: `https://<account>.services.ai.azure.com/api/projects/<project>` |
+| `AZURE_SUBSCRIPTION_ID` | Notebooks 1 and 8: shared subscription containing the Foundry and API Management resources |
+| `AZURE_RESOURCE_GROUP` | Notebook 1: resource group containing the Foundry account and project; not the API Management resource group |
+| `FOUNDRY_ACCOUNT_NAME` | Notebook 1, optional: override the Foundry account name; blank or unset derives it from `FOUNDRY_PROJECT_ENDPOINT` |
+| `FOUNDRY_PROJECT_NAME` | Notebooks 1 and 7: project name matching `FOUNDRY_PROJECT_ENDPOINT`; notebook 1 derives it from the endpoint when blank or unset, while notebook 7 requires it for Voice Live with an agent |
 | `FOUNDRY_MODEL_NAME` | Chat deployment in notebooks 1 and 4 (notebook 4's demo 5 needs GPT-5.6 or later on Standard) |
 | `FOUNDRY_ROUTER_NAME` | Notebook 1 Model Router deployment |
 | `FOUNDRY_EMBEDDING_NAME` | Notebook 1 memory embedding deployment |
@@ -577,10 +581,9 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `CU_COMPLETION_DEPLOYMENT` / `CU_EMBEDDING_DEPLOYMENT` | Notebook 6, optional: deployment names for the `update_defaults` cell |
 | `CU_SAMPLE_DOC_PATH` / `CU_MIXED_BATCH_PATH` / `CU_AGENTIC_DOC_PATH` | Notebook 6, optional: your own PDFs instead of the downloaded samples |
 | `AZURE_VOICELIVE_ENDPOINT` | Notebook 7: Foundry resource endpoint, `https://<resource>.services.ai.azure.com/` |
-| `FOUNDRY_PROJECT_NAME` | Notebook 7: project name, used when Voice Live connects to an agent |
 | `FOUNDRY_TEXT_MODEL_DEPLOYMENT` | Notebook 7, step 6: text model deployment for the text agent |
 | `VOICELIVE_REALTIME_MODEL` / `VOICELIVE_TEXT_MODEL` / `VOICE_AGENT_MODEL` | Notebook 7, optional: managed Voice Live models; default `gpt-realtime`, `gpt-4.1-mini`, `gpt-realtime` |
-| `AZURE_SUBSCRIPTION_ID` / `AZURE_RESOURCE_GROUP` / `APIM_SERVICE_NAME` | Notebook 8: the API Management instance to govern |
+| `APIM_RESOURCE_GROUP` / `APIM_SERVICE_NAME` | Notebook 8: resource group and name of the API Management instance to govern, in the shared `AZURE_SUBSCRIPTION_ID` |
 | `INFERENCE_API_ID` / `INFERENCE_API_PATH` / `INFERENCE_API_STYLE` / `SUBSCRIPTION_KEY_HEADER` / `CHAT_DEPLOYMENT` | Notebook 8: the model API in API Management, its URL suffix, URL shape (`v1` or `azure`), key header, and chat deployment |
 | `BASELINE_SUBSCRIPTION_KEY` | Notebook 8, optional: empty uses the instance's built-in all-access key |
 | `APIM_ARM_API_VERSION` | Notebook 8: preview ARM API version for the calls the SDK cannot model; defaults to `2024-06-01-preview` |
@@ -588,9 +591,11 @@ Use [.env.example](.env.example) as the starting point for a root-level `.env`. 
 | `FOUNDRY_RESOURCE_ENDPOINT` / `EMBEDDINGS_DEPLOYMENT` / `REDIS_CONNECTION_STRING` | Notebook 8, step 5: Foundry resource endpoint, embeddings deployment, and Azure Managed Redis connection string (a secret) |
 | `APPINSIGHTS_*` / `APPLICATIONINSIGHTS_CONNECTION_STRING` / `LOG_ANALYTICS_*` / `LOG_LLM_MESSAGES` | Notebook 8, steps 3 and 10: telemetry destinations and whether prompts and completions are logged |
 | `SECONDARY_FOUNDRY_ENDPOINT` / `MCP_*` / `A2A_*` / `APIM_CONNECTION_NAME` / `FOUNDRY_GATEWAY_*` | Notebook 8, optional steps 6–9 |
-| `PRIVATE_DEMO_*` | Notebook 3 only: subscription, resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Kept separate from the public settings above. |
+| `PRIVATE_DEMO_*` | Notebook 3 only: private resource group, region, account/project/VNet base names, address ranges, model, azd environment, deployment name, and optional user object ID. Set `PRIVATE_DEMO_SUBSCRIPTION_ID` to the same subscription as `AZURE_SUBSCRIPTION_ID`; the private deployment keeps its own settings. |
 
-The gateway variables must be added separately if they are absent from the example file. The notebook builds the gateway client URL by appending `/v1`; confirm that this matches your imported API.
+Notebook 8's gateway settings are included in [.env.example](.env.example). It combines the APIM base URL with `INFERENCE_API_PATH`, then selects the URL shape with `INFERENCE_API_STYLE`: `v1` uses `/openai/v1/chat/completions`; `azure` uses `/openai/deployments/{deployment}/chat/completions` and `INFERENCE_API_VERSION`. Match these settings and `SUBSCRIPTION_KEY_HEADER` to the imported API.
+
+**Migrating an existing `.env`:** move the API Management resource-group value to `APIM_RESOURCE_GROUP`, and set `AZURE_RESOURCE_GROUP` to the Foundry resource group. Keep one `AZURE_SUBSCRIPTION_ID` for both. Define `FOUNDRY_PROJECT_NAME` only once: leave it blank for notebook 1's endpoint-derived default, or set it to the actual project name when running notebook 7.
 
 For telemetry, use this resource-ID shape:
 
@@ -604,7 +609,7 @@ The hosted services use a separate deployment setting, `AZURE_AI_MODEL_DEPLOYMEN
 
 ## Recommended Demo Flow
 
-1. Complete local setup and authenticate. Review notebook 1's environment-specific IDs and resource-creation cells.
+1. Complete local setup and authenticate. Configure notebook 1's environment-derived ARM IDs and required connection names as described above, and review its resource-creation cells.
 2. Run notebook 1 section by section: model calls, tools, conversations, memory, then observability. Evaluation and guardrail tests can be explored separately after agent setup.
 3. Deploy the two hosted services following the agent guide before opening notebook 2's hosted-agent sections.
 4. In notebook 2, connect and invoke the hosted assistant. Run the briefing start cell, then promptly run steering while the first turn is active, followed by the polling cell. Skip steering to finish the original sourcing brief.
